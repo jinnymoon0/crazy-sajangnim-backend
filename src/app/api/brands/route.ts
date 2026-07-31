@@ -45,10 +45,56 @@ export async function GET(request: NextRequest) {
   const includeInactive =
     request.nextUrl.searchParams.get("includeInactive") === "true";
 
+  const withCounts =
+    request.nextUrl.searchParams.get("withCounts") === "true";
+
   const brands = await getBrands({ includeInactive });
 
+  if (!withCounts) {
+    return NextResponse.json(
+      { brands, count: brands.length },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
+  /*
+   * How many sale items each brand currently contributes. A brand with
+   * none is tracked correctly but simply has nothing on sale at the
+   * retailers, which is otherwise indistinguishable from a failure.
+   */
+  const counts = new Map<string, number>();
+
+  try {
+    const supabase = getSupabaseAdmin();
+
+    const { data, error } = await supabase
+      .from("product_catalog")
+      .select("brand_slug")
+      .eq("is_available", true)
+      .eq("sale_verification", "VERIFIED")
+      .limit(20000);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    for (const row of data ?? []) {
+      const slug = row.brand_slug as string;
+
+      counts.set(slug, (counts.get(slug) ?? 0) + 1);
+    }
+  } catch (error) {
+    console.error("Brand product counts failed:", error);
+  }
+
   return NextResponse.json(
-    { brands, count: brands.length },
+    {
+      brands: brands.map((brand) => ({
+        ...brand,
+        productCount: counts.get(brand.slug) ?? 0,
+      })),
+      count: brands.length,
+    },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
