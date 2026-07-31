@@ -74,21 +74,38 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = getSupabaseAdmin();
 
-    const { data, error } = await supabase
-      .from("product_catalog")
-      .select("brand_slug")
-      .eq("is_available", true)
-      .eq("sale_verification", "VERIFIED")
-      .limit(20000);
+    /*
+     * The database caps a single response at a thousand rows whatever
+     * limit is asked for, so read the catalog a page at a time. Asking
+     * for it in one go silently counted only the first page, which left
+     * every brand beyond it looking like it had nothing on sale.
+     */
+    const PAGE_SIZE = 1000;
 
-    if (error) {
-      throw new Error(error.message);
-    }
+    for (let page = 0; ; page += 1) {
+      const from = page * PAGE_SIZE;
 
-    for (const row of data ?? []) {
-      const slug = row.brand_slug as string;
+      const { data, error } = await supabase
+        .from("product_catalog")
+        .select("brand_slug")
+        .eq("is_available", true)
+        .eq("sale_verification", "VERIFIED")
+        .order("brand_slug")
+        .range(from, from + PAGE_SIZE - 1);
 
-      counts.set(slug, (counts.get(slug) ?? 0) + 1);
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      for (const row of data ?? []) {
+        const slug = row.brand_slug as string;
+
+        counts.set(slug, (counts.get(slug) ?? 0) + 1);
+      }
+
+      if (!data || data.length < PAGE_SIZE) {
+        break;
+      }
     }
   } catch (error) {
     console.error("Brand product counts failed:", error);
