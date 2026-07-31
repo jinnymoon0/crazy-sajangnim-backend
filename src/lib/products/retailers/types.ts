@@ -13,6 +13,12 @@ export interface RetailerAdapterOptions {
   brandName: string;
 
   maxProducts: number;
+
+  /**
+   * Set for shops that sell a single label, where the store itself is
+   * proof of the brand. Multi-brand boutiques must match the listing.
+   */
+  trustStoreBrand?: boolean;
 }
 
 export type RetailerAdapter = (options: RetailerAdapterOptions) => Product[];

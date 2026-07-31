@@ -5,6 +5,7 @@ import { getActiveBrands } from "@/lib/products/brand-registry";
 import { collectCafe24Products } from "./cafe24-search";
 import { collectGarmentoryProducts } from "./garmentory";
 import { collectHbxProducts } from "./hbx";
+import { collectBrandStoreProducts } from "./brand-stores";
 import { collectMusinsaProducts } from "./musinsa";
 import { collectOkmallProducts } from "./okmall";
 import { collectTwentyNineCmProducts } from "./twenty-nine-cm";
@@ -36,6 +37,7 @@ export async function collectDirectProducts(
           () => collectOkmallProducts(brands),
           () => collectMusinsaProducts(brands),
           () => collectTwentyNineCmProducts(brands),
+          () => collectBrandStoreProducts(market, brands),
         ]
       : [
           () => collectShopifyProducts(),

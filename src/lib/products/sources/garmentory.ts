@@ -35,6 +35,9 @@ interface GarmentoryItem {
 }
 
 interface GarmentoryResponse {
+  header?: {
+    h1?: string;
+  };
   resultsData?: {
     products?: GarmentoryItem[];
   };
@@ -154,6 +157,15 @@ async function crawlBrand(permalink: string): Promise<Product[]> {
 
       body = (await response.json()) as GarmentoryResponse;
     } catch {
+      break;
+    }
+
+    /*
+     * An unrecognised brand still returns a full page of unrelated
+     * products, with only the empty heading to distinguish it. Stop
+     * rather than sift through a hundred other designers' items.
+     */
+    if (page === 1 && !body.header?.h1?.trim()) {
       break;
     }
 

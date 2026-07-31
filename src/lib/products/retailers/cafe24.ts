@@ -37,6 +37,15 @@ function extractKrwPrices(text: string): number[] {
   return Array.from(new Set(explicit)).sort((first, second) => first - second);
 }
 
+/*
+ * Cafe24 shops link products either as a query string
+ * (product/detail.html?product_no=123) or as a "pretty" path
+ * (/product/champa-skirt/1067/category/29/display/1/), depending on the
+ * shop's URL setting. Match both.
+ */
+const PRODUCT_LINK_SELECTOR =
+  'a[href*="product/detail.html?product_no="], a[href^="/product/"]:not([href*="list.html"]):not([href*="search.html"])';
+
 function resolveProductCards($: RetailerAdapterOptions["$"]) {
   const selectors = [
     ".xans-product-listnormal > ul > li",
@@ -54,11 +63,11 @@ function resolveProductCards($: RetailerAdapterOptions["$"]) {
     }
   }
 
-  return $('a[href*="product/detail.html?product_no="]')
+  return $(PRODUCT_LINK_SELECTOR)
     .closest("li")
     .filter(
       (_, element) =>
-        $(element).find('a[href*="product/detail.html?product_no="]').length >
+        $(element).find(PRODUCT_LINK_SELECTOR).length >
         0,
     );
 }
@@ -70,6 +79,7 @@ export const parseCafe24Products: RetailerAdapter = ({
   brandSlug,
   brandName,
   maxProducts,
+  trustStoreBrand = false,
 }): Product[] => {
   const products: Product[] = [];
 
@@ -83,7 +93,7 @@ export const parseCafe24Products: RetailerAdapter = ({
     const card = $(element);
 
     const productAnchor = card
-      .find('a[href*="product/detail.html?product_no="]')
+      .find(PRODUCT_LINK_SELECTOR)
       .first();
 
     const sourceUrl = absoluteUrl(productAnchor.attr("href"), pageUrl);
@@ -92,7 +102,7 @@ export const parseCafe24Products: RetailerAdapter = ({
       return;
     }
 
-    const name =
+    const name = (
       card
         .find("p.name a, .name a, .description .name, .prdName, .name")
         .first()
@@ -100,16 +110,28 @@ export const parseCafe24Products: RetailerAdapter = ({
         .replace(/\s+/g, " ")
         .trim() ||
       productAnchor.find("img").first().attr("alt")?.trim() ||
-      "";
+      ""
+    )
+      // Some themes render the field label inside the name element.
+      .replace(/^상품명\s*:\s*/, "")
+      .trim();
 
     if (!name) {
       return;
     }
 
-    const detectedBrand = inferBrand(`${brandName} ${name}`);
+    /*
+     * A boutique's search returns whatever it likes, including
+     * unrelated products, so the brand has to come from the listing
+     * itself. Only a shop that sells a single label can vouch for its
+     * own products.
+     */
+    if (!trustStoreBrand) {
+      const detectedBrand = inferBrand(name);
 
-    if (!detectedBrand || detectedBrand.slug !== brandSlug) {
-      return;
+      if (!detectedBrand || detectedBrand.slug !== brandSlug) {
+        return;
+      }
     }
 
     /*
@@ -183,7 +205,7 @@ export const parseCafe24Products: RetailerAdapter = ({
       gender: requestedGender,
 
       brandSlug,
-      brandName: detectedBrand.name || brandName,
+      brandName,
 
       productName: name,
       categorySlug: inferCategory(name),
