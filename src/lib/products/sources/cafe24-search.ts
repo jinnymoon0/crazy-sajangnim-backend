@@ -82,11 +82,13 @@ async function crawlStoreBrand(
   return products;
 }
 
-export async function collectCafe24Products(): Promise<Product[]> {
+export async function collectCafe24Products(
+  brands: BrandRecord[] = getActiveBrands(),
+): Promise<Product[]> {
   const limit = pLimit(4);
 
   const tasks = CAFE24_STORES.flatMap((domain) =>
-    getActiveBrands().map((brand) => limit(() => crawlStoreBrand(domain, brand))),
+    brands.map((brand) => limit(() => crawlStoreBrand(domain, brand))),
   );
 
   const results = await Promise.allSettled(tasks);

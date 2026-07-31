@@ -1,4 +1,6 @@
 import type { Market, Product } from "@/types/product";
+import type { BrandRecord } from "@/lib/products/brand-repository";
+import { getActiveBrands } from "@/lib/products/brand-registry";
 
 import { collectCafe24Products } from "./cafe24-search";
 import { collectGarmentoryProducts } from "./garmentory";
@@ -18,11 +20,24 @@ import { dedupeProducts } from "./shared";
  */
 export async function collectDirectProducts(
   market: Market,
+  brands: BrandRecord[] = getActiveBrands(),
 ): Promise<Product[]> {
-  const collectors =
+  /*
+   * Shopify scans whole store catalogues and filters by brand matcher,
+   * so it takes no brand list; the others query per brand and can be
+   * narrowed to one, which is what adding a single brand does.
+   */
+  const collectors: Array<() => Promise<Product[]>> =
     market === "KR"
-      ? [collectCafe24Products, collectOkmallProducts]
-      : [collectShopifyProducts, collectGarmentoryProducts, collectHbxProducts];
+      ? [
+          () => collectCafe24Products(brands),
+          () => collectOkmallProducts(brands),
+        ]
+      : [
+          () => collectShopifyProducts(),
+          () => collectGarmentoryProducts(brands),
+          () => collectHbxProducts(brands),
+        ];
 
   const results = await Promise.allSettled(
     collectors.map((collect) => collect()),

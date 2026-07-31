@@ -687,7 +687,7 @@
           "Brands"
         ],
         "summary": "Track a new brand",
-        "description": "Adds a brand for both the US and Korean stores. Its sale items are collected from the next run onwards.\n\nThe English name is required because retailers are searched in English. For a name in another language, resolve it with /api/brands/search first and post the chosen candidate.",
+        "description": "Adds a brand for both the US and Korean stores. Its sale items are collected from the next run onwards.\n\nThe English name is required because retailers are searched in English. For a name in another language, resolve it with /api/brands/search first and post the chosen candidate.\n\nThe admin collects the brand's sale items immediately afterwards via /api/brands/{slug}/collect.",
         "requestBody": {
           "required": true,
           "content": {
@@ -893,6 +893,93 @@
           },
           "404": {
             "description": "That brand is not tracked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/brands/{slug}/collect": {
+      "post": {
+        "tags": [
+          "Brands"
+        ],
+        "summary": "Collect one brand's sale items now",
+        "description": "Crawls the retailers for a single brand across both markets and saves what it finds, so a newly added brand appears in the shop straight away instead of waiting for the nightly refresh.\n\nThe admin calls this automatically after adding a brand. Takes roughly half a minute.",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "c-p-company"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Collection finished.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "slug": {
+                      "type": "string"
+                    },
+                    "englishName": {
+                      "type": "string"
+                    },
+                    "collected": {
+                      "type": "object",
+                      "description": "Items found per market.",
+                      "properties": {
+                        "US": {
+                          "type": "integer"
+                        },
+                        "KR": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "saved": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "example": {
+                  "slug": "c-p-company",
+                  "englishName": "C.P. COMPANY",
+                  "collected": {
+                    "US": 8,
+                    "KR": 10
+                  },
+                  "saved": 18
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "That brand is not tracked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The collection run failed.",
             "content": {
               "application/json": {
                 "schema": {

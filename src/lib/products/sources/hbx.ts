@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import pLimit from "p-limit";
 
 import { getActiveBrands } from "@/lib/products/brand-registry";
+import type { BrandRecord } from "@/lib/products/brand-repository";
 import { inferBrand } from "@/lib/products/infer-brand";
 import { inferCategory } from "@/lib/products/infer-category";
 import { calculateDiscountPercentage } from "@/lib/utils";
@@ -246,11 +247,13 @@ async function crawlBrand(englishName: string): Promise<Product[]> {
   return products;
 }
 
-export async function collectHbxProducts(): Promise<Product[]> {
+export async function collectHbxProducts(
+  brands: BrandRecord[] = getActiveBrands(),
+): Promise<Product[]> {
   const limit = pLimit(3);
 
   const results = await Promise.allSettled(
-    getActiveBrands().map((brand) => limit(() => crawlBrand(brand.englishName))),
+    brands.map((brand) => limit(() => crawlBrand(brand.englishName))),
   );
 
   return dedupeProducts(
