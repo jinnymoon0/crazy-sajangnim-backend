@@ -1,13 +1,18 @@
 import { NextResponse } from "next/server";
 
-import { getBrands } from "@/lib/products/brand-repository";
+import {
+  getBrands,
+  type BrandRecord,
+} from "@/lib/products/brand-repository";
 import { setActiveBrands } from "@/lib/products/brand-registry";
+import { discoverBrandStore } from "@/lib/products/brand-store-discovery";
 import { upsertProducts } from "@/lib/products/product-repository";
 import { collectDirectProducts } from "@/lib/products/sources";
 import {
   isAuthorizedService,
   unauthorizedResponse,
 } from "@/lib/service-auth";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import type { Market } from "@/types/product";
 
 export const runtime = "nodejs";
@@ -21,6 +26,52 @@ type RouteContext = {
 };
 
 const MARKETS: Market[] = ["US", "KR"];
+
+/*
+ * Find the brand's own shop and remember it, so later runs go straight
+ * there. A brand without one still collects from the retailers.
+ */
+async function attachDiscoveredStore(
+  brand: BrandRecord,
+): Promise<BrandRecord> {
+  let store = null;
+
+  try {
+    store = await discoverBrandStore(brand.englishName, brand.slug);
+  } catch (error) {
+    console.error("Brand store discovery failed:", error);
+  }
+
+  if (!store) {
+    return brand;
+  }
+
+  try {
+    const supabase = getSupabaseAdmin();
+
+    const { error } = await supabase
+      .from("brands")
+      .update({
+        store_domain: store.domain,
+        store_platform: store.platform,
+        store_market: store.market,
+      })
+      .eq("slug", brand.slug);
+
+    if (error) {
+      console.error("Could not save the discovered store:", error.message);
+    }
+  } catch (error) {
+    console.error("Could not save the discovered store:", error);
+  }
+
+  return {
+    ...brand,
+    storeDomain: store.domain,
+    storePlatform: store.platform,
+    storeMarket: store.market,
+  };
+}
 
 /*
  * Collect sale items for one brand across both markets. Adding a brand
@@ -54,12 +105,21 @@ export async function POST(request: Request, context: RouteContext) {
      */
     setActiveBrands(brands);
 
+    /*
+     * Brands added before store discovery existed have no shop on file,
+     * so look for one here too. That way re-collecting an empty brand
+     * picks up its own store rather than repeating the same search.
+     */
+    const withStore = brand.storeDomain
+      ? brand
+      : await attachDiscoveredStore(brand);
+
     const perMarket: Record<string, number> = {};
 
     let saved = 0;
 
     for (const market of MARKETS) {
-      const products = await collectDirectProducts(market, [brand]);
+      const products = await collectDirectProducts(market, [withStore]);
 
       const forBrand = products.filter(
         (product) => product.brandSlug === brand.slug,

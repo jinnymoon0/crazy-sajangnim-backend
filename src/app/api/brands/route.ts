@@ -9,6 +9,10 @@ import {
 } from "@/lib/products/brand-repository";
 import { isLatinName } from "@/lib/products/brand-lookup";
 import {
+  discoverBrandStore,
+  type DiscoveredStore,
+} from "@/lib/products/brand-store-discovery";
+import {
   isAuthorizedService,
   unauthorizedResponse,
 } from "@/lib/service-auth";
@@ -175,20 +179,56 @@ export async function POST(request: Request) {
       console.error("Brand seeding failed:", error);
     }
 
+    /*
+     * Small labels are rarely discounted by the big platforms, so their
+     * own shop is usually the only place their sales show up. Look for
+     * it now so the collection that follows can read it.
+     */
+    let store: DiscoveredStore | null = null;
+
+    try {
+      store = await discoverBrandStore(englishName, slug);
+    } catch (error) {
+      console.error("Brand store discovery failed:", error);
+    }
+
     const supabase = getSupabaseAdmin();
 
-    const { data, error } = await supabase
+    const row = {
+      slug,
+      english_name: englishName,
+      korean_name: koreanName,
+      aliases,
+      is_active: true,
+      added_by: parsed.data.addedBy?.trim() || null,
+    };
+
+    let { data, error } = await supabase
       .from("brands")
       .insert({
-        slug,
-        english_name: englishName,
-        korean_name: koreanName,
-        aliases,
-        is_active: true,
-        added_by: parsed.data.addedBy?.trim() || null,
+        ...row,
+        store_domain: store?.domain ?? null,
+        store_platform: store?.platform ?? null,
+        store_market: store?.market ?? null,
       })
       .select("slug, english_name, korean_name, aliases, is_active")
       .single();
+
+    /*
+     * The store columns are optional; without them the brand is still
+     * worth tracking, it just cannot be collected from its own shop.
+     */
+    if (error?.code === "PGRST204" || error?.code === "42703") {
+      console.error(
+        "Brand store columns are missing. Run supabase/brand-stores.sql.",
+      );
+
+      ({ data, error } = await supabase
+        .from("brands")
+        .insert(row)
+        .select("slug, english_name, korean_name, aliases, is_active")
+        .single());
+    }
 
     if (error) {
       if (error.code === "23505") {
@@ -219,6 +259,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!data) {
+      return NextResponse.json(
+        { error: "Failed to add the brand." },
+        { status: 500 },
+      );
+    }
+
     return NextResponse.json(
       {
         brand: {
@@ -227,6 +274,7 @@ export async function POST(request: Request) {
           koreanName: data.korean_name,
           aliases: data.aliases ?? [],
           isActive: data.is_active,
+          store,
         },
       },
       { status: 201 },

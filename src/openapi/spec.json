@@ -79,7 +79,7 @@
           },
           "sourceName": {
             "type": "string",
-            "example": "garmentory.com \u00b7 TONS / Pittsburgh, PA"
+            "example": "garmentory.com · TONS / Pittsburgh, PA"
           },
           "sourceUrl": {
             "type": "string",
@@ -298,7 +298,7 @@
           "koreanName": {
             "type": "string",
             "nullable": true,
-            "example": "\uc2a4\ud1a4\uc544\uc77c\ub79c\ub4dc"
+            "example": "스톤아일랜드"
           },
           "aliases": {
             "type": "array",
@@ -319,6 +319,15 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
+          },
+          "store": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrandStore"
+              }
+            ],
+            "nullable": true,
+            "description": "The brand's own shop, when one was found."
           }
         }
       },
@@ -355,6 +364,31 @@
           "sourceTitle": {
             "type": "string",
             "nullable": true
+          }
+        }
+      },
+      "BrandStore": {
+        "type": "object",
+        "description": "A shop the brand runs itself, found automatically when the brand is added. Small labels are rarely discounted by the big retailers, so this is often the only place their sales appear.",
+        "properties": {
+          "domain": {
+            "type": "string",
+            "example": "nuuanu.kr"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "cafe24",
+              "shopify"
+            ]
+          },
+          "market": {
+            "type": "string",
+            "enum": [
+              "US",
+              "KR"
+            ],
+            "description": "Which storefront the shop's prices belong to, decided by the currency it charges in."
           }
         }
       }
@@ -687,7 +721,7 @@
           "Brands"
         ],
         "summary": "Track a new brand",
-        "description": "Adds a brand for both the US and Korean stores. Its sale items are collected from the next run onwards.\n\nThe English name is required because retailers are searched in English. For a name in another language, resolve it with /api/brands/search first and post the chosen candidate.\n\nThe admin collects the brand's sale items immediately afterwards via /api/brands/{slug}/collect.",
+        "description": "Track a brand across both storefronts. The brand's own online shop is looked for at the same time and remembered, so its sale items can be read straight from the source. Callers should collect the brand afterwards with POST /api/brands/{slug}/collect and drop it again if nothing comes back — a brand with no sale items has nothing to show in the shop.",
         "requestBody": {
           "required": true,
           "content": {
@@ -705,7 +739,7 @@
                   "koreanName": {
                     "type": "string",
                     "nullable": true,
-                    "example": "\uc2a4\ud1a4\uc544\uc77c\ub79c\ub4dc"
+                    "example": "스톤아일랜드"
                   },
                   "aliases": {
                     "type": "array",
@@ -730,7 +764,7 @@
         },
         "responses": {
           "201": {
-            "description": "The brand is now tracked.",
+            "description": "The brand is now tracked, with its own shop attached when one was found.",
             "content": {
               "application/json": {
                 "schema": {
@@ -795,7 +829,7 @@
             "description": "Brand name in any language.",
             "schema": {
               "type": "string",
-              "example": "\uc2a4\ud1a4\uc544\uc77c\ub79c\ub4dc"
+              "example": "스톤아일랜드"
             }
           }
         ],
@@ -910,7 +944,7 @@
           "Brands"
         ],
         "summary": "Collect one brand's sale items now",
-        "description": "Crawls the retailers for a single brand across both markets and saves what it finds, so a newly added brand appears in the shop straight away instead of waiting for the nightly refresh.\n\nThe admin calls this automatically after adding a brand. Takes roughly half a minute.",
+        "description": "Collect a brand's sale items from every source right away, rather than waiting for the nightly refresh. A brand with no shop on file has one looked for and saved first. `collected` is the number of sale items found per storefront; zero in both means the brand has nothing on sale anywhere we search.",
         "parameters": [
           {
             "name": "slug",

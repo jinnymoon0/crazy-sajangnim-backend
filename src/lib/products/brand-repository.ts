@@ -9,6 +9,10 @@ export interface BrandRecord {
   isActive: boolean;
   addedBy: string | null;
   createdAt: string | null;
+  /** The brand's own shop, when one was found. */
+  storeDomain?: string | null;
+  storePlatform?: string | null;
+  storeMarket?: string | null;
 }
 
 interface BrandRow {
@@ -19,6 +23,9 @@ interface BrandRow {
   is_active: boolean;
   added_by: string | null;
   created_at: string;
+  store_domain?: string | null;
+  store_platform?: string | null;
+  store_market?: string | null;
 }
 
 /*
@@ -48,6 +55,9 @@ function toRecord(row: BrandRow): BrandRecord {
     isActive: row.is_active,
     addedBy: row.added_by,
     createdAt: row.created_at,
+    storeDomain: row.store_domain ?? null,
+    storePlatform: row.store_platform ?? null,
+    storeMarket: row.store_market ?? null,
   };
 }
 
@@ -63,9 +73,7 @@ export async function getBrands(
 
     let query = supabase
       .from("brands")
-      .select(
-        "slug, english_name, korean_name, aliases, is_active, added_by, created_at",
-      )
+      .select("*")
       .order("slug", { ascending: true });
 
     if (!options?.includeInactive) {

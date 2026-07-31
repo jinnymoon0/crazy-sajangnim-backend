@@ -1,31 +1,25 @@
+import { createHash } from "node:crypto";
 import * as cheerio from "cheerio";
 import pLimit from "p-limit";
 
 import { getActiveBrands } from "@/lib/products/brand-registry";
 import type { BrandRecord } from "@/lib/products/brand-repository";
+import { inferCategory } from "@/lib/products/infer-category";
 import { parseCafe24Products } from "@/lib/products/retailers/cafe24";
+import { calculateDiscountPercentage } from "@/lib/utils";
 import type { Market, Product } from "@/types/product";
 
-import { dedupeProducts, fetchWithTimeout, resolveGender } from "./shared";
-
-interface BrandStore {
-  domain: string;
-  brandSlug: string;
-  market: Market;
-}
-
-/*
- * Shops run by a single label. The big platforms rarely discount these
- * smaller brands, so their own store is where the sales are.
- */
-const BRAND_STORES: BrandStore[] = [
-  { domain: "nuuanu.kr", brandSlug: "nuuanu", market: "KR" },
-];
+import {
+  dedupeProducts,
+  fetchWithTimeout,
+  isReasonablePrice,
+  resolveGender,
+} from "./shared";
 
 /*
  * A label's own shop does not tag products with its own name, so
- * searching for the brand returns nothing. Enumerate the catalogue by
- * garment instead.
+ * searching it for the brand returns nothing. Enumerate the catalogue
+ * by garment instead.
  */
 const CATALOGUE_TERMS = [
   "skirt",
@@ -39,15 +33,17 @@ const CATALOGUE_TERMS = [
 ];
 
 const MAX_PRODUCTS_PER_TERM = 60;
+const MAX_SHOPIFY_PAGES = 6;
 
-async function crawlStore(
-  store: BrandStore,
+async function crawlCafe24Store(
+  domain: string,
   brand: BrandRecord,
+  market: Market,
 ): Promise<Product[]> {
   const products: Product[] = [];
 
   for (const term of CATALOGUE_TERMS) {
-    const pageUrl = `https://${store.domain}/product/search.html?keyword=${encodeURIComponent(term)}`;
+    const pageUrl = `https://${domain}/product/search.html?keyword=${encodeURIComponent(term)}`;
 
     let html: string;
 
@@ -72,7 +68,7 @@ async function crawlStore(
       $,
       html,
       pageUrl,
-      market: store.market,
+      market,
       requestedGender: "WOMEN",
       brandSlug: brand.slug,
       brandName: brand.englishName,
@@ -80,11 +76,6 @@ async function crawlStore(
       trustStoreBrand: true,
     });
 
-    /*
-     * The adapter stamps the requested gender; a catalogue listing has
-     * none, so classify from the product name and let unisex pieces
-     * show in both segments.
-     */
     products.push(
       ...parsed.map((product) => ({
         ...product,
@@ -96,33 +87,215 @@ async function crawlStore(
   return products;
 }
 
+interface ShopifyVariant {
+  price?: string;
+  compare_at_price?: string | null;
+  available?: boolean;
+}
+
+interface ShopifyProduct {
+  title?: string;
+  handle?: string;
+  product_type?: string;
+  tags?: string[] | string;
+  variants?: ShopifyVariant[];
+  images?: { src?: string }[];
+}
+
+function parsePrice(value: string | null | undefined): number | null {
+  if (!value || !/^\d+(\.\d{1,2})?$/.test(value.trim())) {
+    return null;
+  }
+
+  const parsed = Number.parseFloat(value);
+
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+async function crawlShopifyStore(
+  domain: string,
+  brand: BrandRecord,
+  market: Market,
+): Promise<Product[]> {
+  const products: Product[] = [];
+
+  for (let page = 1; page <= MAX_SHOPIFY_PAGES; page += 1) {
+    let items: ShopifyProduct[];
+
+    try {
+      const response = await fetchWithTimeout(
+        `https://${domain}/products.json?limit=250&page=${page}`,
+      );
+
+      if (!response.ok) {
+        break;
+      }
+
+      const body = (await response.json()) as {
+        products?: ShopifyProduct[];
+      };
+
+      items = body.products ?? [];
+    } catch {
+      break;
+    }
+
+    if (items.length === 0) {
+      break;
+    }
+
+    for (const item of items) {
+      const title = item.title?.trim();
+      const handle = item.handle?.trim();
+
+      if (!title || !handle) {
+        continue;
+      }
+
+      const saleVariant = (item.variants ?? []).find((variant) => {
+        if (variant.available === false) {
+          return false;
+        }
+
+        const price = parsePrice(variant.price);
+        const compareAt = parsePrice(variant.compare_at_price ?? null);
+
+        return price !== null && compareAt !== null && compareAt > price;
+      });
+
+      if (!saleVariant) {
+        continue;
+      }
+
+      const salePrice = parsePrice(saleVariant.price);
+      const originalPrice = parsePrice(saleVariant.compare_at_price ?? null);
+
+      if (
+        !salePrice ||
+        !originalPrice ||
+        !isReasonablePrice(salePrice, market) ||
+        originalPrice <= salePrice
+      ) {
+        continue;
+      }
+
+      const discountPercentage = calculateDiscountPercentage(
+        originalPrice,
+        salePrice,
+      );
+
+      if (discountPercentage <= 0 || discountPercentage >= 90) {
+        continue;
+      }
+
+      const sourceUrl = `https://${domain}/products/${handle}`;
+
+      const genderText = [
+        title,
+        item.product_type,
+        Array.isArray(item.tags) ? item.tags.join(" ") : item.tags,
+        handle,
+      ]
+        .filter(Boolean)
+        .join(" ");
+
+      products.push({
+        id: createHash("sha256")
+          .update([sourceUrl, title, salePrice].join("|"))
+          .digest("hex")
+          .slice(0, 24),
+
+        sourceName: domain,
+        sourceUrl,
+
+        market,
+        currency: market === "KR" ? "KRW" : "USD",
+        gender: resolveGender(genderText, "UNISEX"),
+
+        brandSlug: brand.slug,
+        brandName: brand.englishName,
+
+        productName: title,
+        categorySlug: inferCategory(`${title} ${item.product_type ?? ""}`),
+
+        imageUrl: item.images?.[0]?.src ?? "/product-placeholder.svg",
+
+        originalPrice,
+        salePrice,
+        discountPercentage,
+        saleVerification: "VERIFIED",
+
+        isAvailable: true,
+        collectedAt: new Date().toISOString(),
+      });
+    }
+
+    if (items.length < 250) {
+      break;
+    }
+  }
+
+  return products;
+}
+
+/*
+ * Collect from the shops brands run themselves. Smaller labels are
+ * rarely discounted by the big platforms, so this is often the only
+ * place their sales appear.
+ */
 export async function collectBrandStoreProducts(
   market: Market,
   brands: BrandRecord[] = getActiveBrands(),
 ): Promise<Product[]> {
-  const stores = BRAND_STORES.filter((store) => store.market === market);
+  /*
+   * A shop trades in one currency, so only visit the ones that belong
+   * to the storefront being collected. Cafe24 is a Korean platform.
+   */
+  const withStores = brands.filter((brand) => {
+    if (!brand.storeDomain || !brand.storePlatform) {
+      return false;
+    }
 
-  const tasks = stores.flatMap((store) => {
-    const brand = brands.find(
-      (candidate) => candidate.slug === store.brandSlug,
-    );
+    const storeMarket =
+      brand.storeMarket ??
+      (brand.storePlatform === "cafe24" ? "KR" : null);
 
-    return brand ? [{ store, brand }] : [];
+    return storeMarket === market;
   });
 
-  if (tasks.length === 0) {
+  if (withStores.length === 0) {
     return [];
   }
 
-  const limit = pLimit(2);
+  const limit = pLimit(3);
 
   const results = await Promise.allSettled(
-    tasks.map(({ store, brand }) => limit(() => crawlStore(store, brand))),
+    withStores.map((brand) =>
+      limit(() => {
+        const domain = brand.storeDomain as string;
+
+        return brand.storePlatform === "shopify"
+          ? crawlShopifyStore(domain, brand, market)
+          : crawlCafe24Store(domain, brand, market);
+      }),
+    ),
   );
 
+  for (const result of results) {
+    if (result.status === "rejected") {
+      console.error("Brand store crawl failed:", result.reason);
+    }
+  }
+
+  /*
+   * A shop trades in one currency, so only return what belongs to the
+   * market being collected.
+   */
   return dedupeProducts(
-    results.flatMap((result) =>
-      result.status === "fulfilled" ? result.value : [],
-    ),
+    results
+      .flatMap((result) =>
+        result.status === "fulfilled" ? result.value : [],
+      )
+      .filter((product) => product.market === market),
   );
 }

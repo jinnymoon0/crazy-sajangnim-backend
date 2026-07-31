@@ -43,6 +43,7 @@ export async function collectDirectProducts(
           () => collectShopifyProducts(),
           () => collectGarmentoryProducts(brands),
           () => collectHbxProducts(brands),
+          () => collectBrandStoreProducts(market, brands),
         ];
 
   const results = await Promise.allSettled(
