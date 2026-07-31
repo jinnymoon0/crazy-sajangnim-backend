@@ -165,4 +165,9 @@ export const BRANDS = [
 ] as const;
 
 export type Brand = (typeof BRANDS)[number];
-export type BrandSlug = Brand["slug"];
+
+/*
+ * Brands are managed at runtime in the database, so a slug is any
+ * string; this list is only the seed shipped with the code.
+ */
+export type BrandSlug = string;

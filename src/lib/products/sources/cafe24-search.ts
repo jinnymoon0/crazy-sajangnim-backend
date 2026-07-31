@@ -1,7 +1,10 @@
 import * as cheerio from "cheerio";
 import pLimit from "p-limit";
 
-import { BRANDS } from "@/constants/brands";
+import {
+  getActiveBrands,
+} from "@/lib/products/brand-registry";
+import type { BrandRecord } from "@/lib/products/brand-repository";
 import { parseCafe24Products } from "@/lib/products/retailers/cafe24";
 import type { Product } from "@/types/product";
 
@@ -17,7 +20,7 @@ const MAX_PAGES_PER_QUERY = 2;
 
 async function crawlStoreBrand(
   domain: string,
-  brand: (typeof BRANDS)[number],
+  brand: BrandRecord,
 ): Promise<Product[]> {
   const products: Product[] = [];
 
@@ -83,7 +86,7 @@ export async function collectCafe24Products(): Promise<Product[]> {
   const limit = pLimit(4);
 
   const tasks = CAFE24_STORES.flatMap((domain) =>
-    BRANDS.map((brand) => limit(() => crawlStoreBrand(domain, brand))),
+    getActiveBrands().map((brand) => limit(() => crawlStoreBrand(domain, brand))),
   );
 
   const results = await Promise.allSettled(tasks);

@@ -1,4 +1,5 @@
-import { BRANDS, type BrandSlug } from "@/constants/brands";
+import { type BrandSlug } from "@/constants/brands";
+import { getActiveBrands } from "@/lib/products/brand-registry";
 
 export interface InferredBrand {
   slug: BrandSlug;
@@ -74,7 +75,7 @@ export function inferBrand(value: string): InferredBrand | null {
     return null;
   }
 
-  const matches = BRANDS.filter((brand) =>
+  const matches = getActiveBrands().filter((brand) =>
     brand.aliases.some((alias) => containsAlias(normalizedText, alias)),
   );
 
