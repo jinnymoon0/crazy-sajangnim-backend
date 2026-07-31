@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import {
+  expandAliases,
   getBrands,
   seedBrands,
   toBrandSlug,
@@ -99,9 +100,19 @@ export async function POST(request: Request) {
 
     const koreanName = parsed.data.koreanName?.trim() || null;
 
+    /*
+     * Match the punctuation variants retailers actually use, not only
+     * the name exactly as it was typed.
+     */
     const aliases = Array.from(
       new Set(
-        [englishName, ...(parsed.data.aliases ?? []), koreanName]
+        [
+          ...expandAliases(englishName),
+          ...(parsed.data.aliases ?? []).flatMap((alias) =>
+            expandAliases(alias),
+          ),
+          koreanName,
+        ]
           .filter((value): value is string => Boolean(value && value.trim()))
           .map((value) => value.trim()),
       ),

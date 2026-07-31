@@ -127,14 +127,15 @@ function normalizeItem(item: GarmentoryItem): Product | null {
   };
 }
 
-async function crawlBrand(englishName: string): Promise<Product[]> {
+async function crawlBrand(permalink: string): Promise<Product[]> {
   const products: Product[] = [];
 
   /*
    * The /sale/<brand> feed is brand-exact and sale-biased, unlike the fuzzy
-   * /search?q= endpoint that mixes in other designers.
+   * /search?q= endpoint that mixes in other designers. The permalink is the
+   * brand slug, which already collapses punctuation the way Garmentory
+   * does — "C.P. COMPANY" is served at /sale/c-p-company.
    */
-  const permalink = englishName.toLowerCase().replace(/\s+/g, "-");
 
   let previousFirstId: GarmentoryItem["id"] | null = null;
 
@@ -191,7 +192,7 @@ export async function collectGarmentoryProducts(): Promise<Product[]> {
   const limit = pLimit(3);
 
   const results = await Promise.allSettled(
-    getActiveBrands().map((brand) => limit(() => crawlBrand(brand.englishName))),
+    getActiveBrands().map((brand) => limit(() => crawlBrand(brand.slug))),
   );
 
   return dedupeProducts(

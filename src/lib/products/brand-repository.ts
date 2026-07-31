@@ -122,6 +122,35 @@ export async function seedBrands(): Promise<number> {
   return rows.length;
 }
 
+/*
+ * Retailers punctuate brand names inconsistently — "C.P. Company" is
+ * also written "CP Company" and "C.P.Company". Matching only the name
+ * as typed would miss most listings, so expand it into the spellings
+ * that actually appear.
+ */
+export function expandAliases(name: string): string[] {
+  const trimmed = name.trim().toUpperCase();
+
+  if (!trimmed) {
+    return [];
+  }
+
+  const withoutPunctuation = trimmed
+    .replace(/[.'’&]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const collapsed = withoutPunctuation.replace(/\s+/g, "");
+
+  return Array.from(
+    new Set(
+      [trimmed, withoutPunctuation, collapsed].filter(
+        (value) => value.length >= 2,
+      ),
+    ),
+  );
+}
+
 export function toBrandSlug(value: string): string {
   return value
     .normalize("NFKD")
