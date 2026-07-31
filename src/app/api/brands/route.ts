@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import {
   getBrands,
+  seedBrands,
   toBrandSlug,
 } from "@/lib/products/brand-repository";
 import { isLatinName } from "@/lib/products/brand-lookup";
@@ -105,6 +106,17 @@ export async function POST(request: Request) {
           .map((value) => value.trim()),
       ),
     );
+
+    /*
+     * The shipped brands are only a fallback while the table is empty,
+     * so copy them in before the first addition. Otherwise adding one
+     * brand would leave it as the only tracked brand.
+     */
+    try {
+      await seedBrands();
+    } catch (error) {
+      console.error("Brand seeding failed:", error);
+    }
 
     const supabase = getSupabaseAdmin();
 
