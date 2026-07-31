@@ -27,8 +27,6 @@ function candidateDomains(englishName: string, slug: string): string[] {
     new Set([slug, compact, slug.replace(/-/g, "")].filter(Boolean)),
   );
 
-  const suffixes = [".com", ".kr", ".co.kr", ".store", ".shop"];
-
   const domains: string[] = [];
 
   for (const base of bases) {
@@ -36,14 +34,34 @@ function candidateDomains(englishName: string, slug: string): string[] {
       continue;
     }
 
-    for (const suffix of suffixes) {
-      domains.push(`${base}${suffix}`);
-    }
+    /*
+     * Ordered by how likely each is to be the real shop, because the
+     * first candidate that checks out wins. The regional subdomains
+     * matter for labels whose home site sells in a third currency —
+     * BAPE trades in yen at bape.com but in dollars at us.bape.com.
+     */
+    domains.push(
+      `${base}.com`,
+      `${base}.kr`,
+      `${base}.co.kr`,
+      `us.${base}.com`,
+      `kr.${base}.com`,
+      `shop.${base}.com`,
+      `store.${base}.com`,
+      `${base}.store`,
+      `${base}.shop`,
+      `shop${base}.com`,
+    );
 
-    domains.push(`shop${base}.com`, `${base}official.com`);
+    /*
+     * "<brand>official.com" is deliberately left out. It is the domain
+     * counterfeit shops reach for, and it produced only false matches:
+     * a Pakistani bag brand for HIBISCUS, and a Wu-Tang merch store for
+     * SUPREME.
+     */
   }
 
-  return Array.from(new Set(domains)).slice(0, 18);
+  return Array.from(new Set(domains)).slice(0, 24);
 }
 
 async function fetchHtml(url: string): Promise<string | null> {
@@ -132,9 +150,111 @@ async function shopCurrency(domain: string): Promise<string | null> {
   return null;
 }
 
+
 /*
- * Look for a brand's own shop. Returns the first candidate that both
- * names the brand and runs on a platform we can read.
+ * Names as loosely as the shops write them: "NANAMICA 2026 SS" and
+ * "Aimé Leon Dore" both have to match the brand they belong to.
+ */
+function normalizeName(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+/*
+ * A brand's own shop sells that brand. Checking the vendor on its
+ * products is what separates a real store from one that merely owns a
+ * matching address — supremeofficial.com prices in dollars and says
+ * "supreme" throughout, but every product on it is Wu-Tang merch.
+ *
+ * It also keeps retailers out. Kith sells mostly Nike, and trusting it
+ * as the KITH store would file those products under the wrong brand.
+ */
+async function sellsBrand(
+  domain: string,
+  englishName: string,
+): Promise<boolean> {
+  const body = await fetchHtml(`https://${domain}/products.json?limit=50`);
+
+  if (!body) {
+    return false;
+  }
+
+  let products: { vendor?: string }[];
+
+  try {
+    products = (JSON.parse(body) as { products?: { vendor?: string }[] })
+      .products ?? [];
+  } catch {
+    return false;
+  }
+
+  if (products.length === 0) {
+    return false;
+  }
+
+  const brand = normalizeName(englishName);
+
+  const matching = products.filter((product) =>
+    normalizeName(product.vendor ?? "").includes(brand),
+  ).length;
+
+  return matching >= products.length / 2;
+}
+
+/*
+ * Decide whether a reachable page is a shop we can read, and which
+ * storefront its prices belong to.
+ */
+async function evaluate(
+  domain: string,
+  html: string,
+  englishName: string,
+): Promise<DiscoveredStore | null> {
+  const platform = detectPlatform(html);
+
+  if (!platform) {
+    return null;
+  }
+
+  /*
+   * Short brand names often collide with an unrelated business that
+   * happens to own the address, so the shop has to price in a currency
+   * one of the storefronts actually uses. Cafe24 is a Korean platform
+   * and prices in won.
+   */
+  if (platform === "cafe24") {
+    return { domain, platform, market: "KR" };
+  }
+
+  if (!(await sellsBrand(domain, englishName))) {
+    console.log(
+      `Skipping ${domain} for ${englishName}: its products are other brands`,
+    );
+
+    return null;
+  }
+
+  const currency = await shopCurrency(domain);
+  const market = currency ? CURRENCY_MARKETS[currency] : undefined;
+
+  if (!market) {
+    console.log(
+      `Skipping ${domain} for ${englishName}: prices in ${currency ?? "an unknown currency"}`,
+    );
+
+    return null;
+  }
+
+  return { domain, platform, market };
+}
+
+/*
+ * Look for a brand's own shop. Returns the first candidate that names
+ * the brand, runs on a platform we can read, and prices in a currency
+ * one of the storefronts uses.
  */
 export async function discoverBrandStore(
   englishName: string,
@@ -143,78 +263,36 @@ export async function discoverBrandStore(
   const domains = candidateDomains(englishName, slug);
 
   /*
-   * Probing eighteen domains one at a time takes longer than a request
-   * should, so check them in batches while still preferring the
-   * earlier, more likely candidates.
+   * Probing two dozen domains one at a time takes longer than a request
+   * should, so check them in batches. Each batch is settled before the
+   * next is fetched, which keeps the earlier, more likely candidates
+   * winning without giving up on the rest when one is rejected.
    */
   const BATCH_SIZE = 6;
-  const reachable: { domain: string; html: string }[] = [];
 
   for (let start = 0; start < domains.length; start += BATCH_SIZE) {
-    const batch = domains.slice(start, start + BATCH_SIZE);
-
     const pages = await Promise.all(
-      batch.map(async (domain) => ({
+      domains.slice(start, start + BATCH_SIZE).map(async (domain) => ({
         domain,
         html: await fetchHtml(`https://${domain}/`),
       })),
     );
 
-    for (const page of pages) {
-      if (page.html && mentionsBrand(page.html, englishName)) {
-        reachable.push({ domain: page.domain, html: page.html });
-      }
-    }
-
-    if (reachable.length > 0) {
-      break;
-    }
-  }
-
-  for (const { domain, html } of reachable) {
-    const platform = detectPlatform(html);
-
-    if (!platform) {
-      continue;
-    }
-
-    /*
-     * Short brand names often collide with an unrelated business that
-     * happens to own the address, so the shop has to price in a
-     * currency one of the storefronts actually uses. Cafe24 is a
-     * Korean platform and prices in won.
-     */
-    let market: Market = "KR";
-
-    if (platform === "shopify") {
-      const products = await fetchHtml(
-        `https://${domain}/products.json?limit=1`,
-      );
-
-      if (!products || !products.includes('"products"')) {
+    for (const { domain, html } of pages) {
+      if (!html || !mentionsBrand(html, englishName)) {
         continue;
       }
 
-      const currency = await shopCurrency(domain);
+      const store = await evaluate(domain, html, englishName);
 
-      const resolved = currency ? CURRENCY_MARKETS[currency] : undefined;
-
-      if (!resolved) {
+      if (store) {
         console.log(
-          `Skipping ${domain} for ${englishName}: prices in ${currency ?? "an unknown currency"}`,
+          `Discovered ${store.platform} store for ${englishName}: ${domain} (${store.market})`,
         );
 
-        continue;
+        return store;
       }
-
-      market = resolved;
     }
-
-    console.log(
-      `Discovered ${platform} store for ${englishName}: ${domain} (${market})`,
-    );
-
-    return { domain, platform, market };
   }
 
   return null;
