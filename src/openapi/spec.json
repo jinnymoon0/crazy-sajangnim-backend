@@ -6,12 +6,28 @@
     "description": "Product collection and catalog service for the Crazy Sajangnim shop. Crawls retailer catalogs, verifies sale prices against the retailer's own data, stores them in Supabase, and serves the catalog to the frontend.\n\nThese endpoints are called server-to-server. The frontend proxies catalog reads so the service token never reaches a browser."
   },
   "servers": [
-    { "url": "http://localhost:3002", "description": "Local development" },
-    { "url": "https://crazy-sajangnim-backend.vercel.app", "description": "Production" }
+    {
+      "url": "http://localhost:3002",
+      "description": "Local development"
+    },
+    {
+      "url": "https://crazy-sajangnim-backend.vercel.app",
+      "description": "Production"
+    }
   ],
   "tags": [
-    { "name": "Catalog", "description": "Reading stored products" },
-    { "name": "Collection", "description": "Crawling retailers and refreshing the catalog" }
+    {
+      "name": "Catalog",
+      "description": "Reading stored products"
+    },
+    {
+      "name": "Collection",
+      "description": "Crawling retailers and refreshing the catalog"
+    },
+    {
+      "name": "Brands",
+      "description": "Which brands are tracked and collected"
+    }
   ],
   "components": {
     "securitySchemes": {
@@ -31,66 +47,194 @@
         "name": "market",
         "in": "query",
         "description": "Storefront region. Defaults to US when omitted or unrecognised.",
-        "schema": { "type": "string", "enum": ["US", "KR"], "default": "US" }
+        "schema": {
+          "type": "string",
+          "enum": [
+            "US",
+            "KR"
+          ],
+          "default": "US"
+        }
       },
       "gender": {
         "name": "gender",
         "in": "query",
         "description": "Segment to read. Unisex products appear in both. Defaults to MEN.",
-        "schema": { "type": "string", "enum": ["MEN", "WOMEN"], "default": "MEN" }
+        "schema": {
+          "type": "string",
+          "enum": [
+            "MEN",
+            "WOMEN"
+          ],
+          "default": "MEN"
+        }
       }
     },
     "schemas": {
       "Product": {
         "type": "object",
         "properties": {
-          "id": { "type": "string" },
-          "sourceName": { "type": "string", "example": "garmentory.com · TONS / Pittsburgh, PA" },
-          "sourceUrl": { "type": "string", "format": "uri" },
-          "market": { "type": "string", "enum": ["US", "KR"] },
-          "currency": { "type": "string", "enum": ["USD", "KRW"] },
-          "gender": { "type": "string", "enum": ["MEN", "WOMEN", "UNISEX"] },
-          "brandSlug": { "type": "string", "example": "auralee" },
-          "brandName": { "type": "string", "example": "AURALEE" },
-          "productName": { "type": "string" },
+          "id": {
+            "type": "string"
+          },
+          "sourceName": {
+            "type": "string",
+            "example": "garmentory.com \u00b7 TONS / Pittsburgh, PA"
+          },
+          "sourceUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "market": {
+            "type": "string",
+            "enum": [
+              "US",
+              "KR"
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "USD",
+              "KRW"
+            ]
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "MEN",
+              "WOMEN",
+              "UNISEX"
+            ]
+          },
+          "brandSlug": {
+            "type": "string",
+            "example": "auralee"
+          },
+          "brandName": {
+            "type": "string",
+            "example": "AURALEE"
+          },
+          "productName": {
+            "type": "string"
+          },
           "categorySlug": {
             "type": "string",
-            "enum": ["outerwear", "shirts", "knitwear", "t-shirts", "pants", "shorts", "bags", "shoes", "accessories"]
+            "enum": [
+              "outerwear",
+              "shirts",
+              "knitwear",
+              "t-shirts",
+              "pants",
+              "shorts",
+              "bags",
+              "shoes",
+              "accessories"
+            ]
           },
-          "imageUrl": { "type": "string" },
-          "originalPrice": { "type": "number", "nullable": true },
-          "salePrice": { "type": "number" },
-          "discountPercentage": { "type": "integer", "nullable": true },
+          "imageUrl": {
+            "type": "string"
+          },
+          "originalPrice": {
+            "type": "number",
+            "nullable": true
+          },
+          "salePrice": {
+            "type": "number"
+          },
+          "discountPercentage": {
+            "type": "integer",
+            "nullable": true
+          },
           "saleVerification": {
             "type": "string",
-            "enum": ["VERIFIED", "UNVERIFIED"],
+            "enum": [
+              "VERIFIED",
+              "UNVERIFIED"
+            ],
             "description": "VERIFIED means the retailer published both the sale and original price for this product. Only verified products are shown on the site."
           },
-          "isAvailable": { "type": "boolean" },
-          "collectedAt": { "type": "string", "format": "date-time" }
+          "isAvailable": {
+            "type": "boolean"
+          },
+          "collectedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "CatalogPage": {
         "type": "object",
         "properties": {
-          "products": { "type": "array", "items": { "$ref": "#/components/schemas/Product" } },
-          "page": { "type": "integer" },
-          "size": { "type": "integer" },
-          "total": { "type": "integer", "description": "Matching products across all pages." },
-          "hasMore": { "type": "boolean" },
-          "market": { "type": "string", "enum": ["US", "KR"] },
-          "gender": { "type": "string", "enum": ["MEN", "WOMEN"] },
-          "updatedAt": { "type": "string", "format": "date-time" }
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            }
+          },
+          "page": {
+            "type": "integer"
+          },
+          "size": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer",
+            "description": "Matching products across all pages."
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "market": {
+            "type": "string",
+            "enum": [
+              "US",
+              "KR"
+            ]
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "MEN",
+              "WOMEN"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "CollectionResult": {
         "type": "object",
         "properties": {
-          "products": { "type": "array", "items": { "$ref": "#/components/schemas/Product" } },
-          "count": { "type": "integer" },
-          "market": { "type": "string", "enum": ["US", "KR"] },
-          "gender": { "type": "string", "enum": ["MEN", "WOMEN"] },
-          "updatedAt": { "type": "string", "format": "date-time" },
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            }
+          },
+          "count": {
+            "type": "integer"
+          },
+          "market": {
+            "type": "string",
+            "enum": [
+              "US",
+              "KR"
+            ]
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "MEN",
+              "WOMEN"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
           "diagnostics": {
             "type": "object",
             "description": "Only present when debug=true. Reports per-brand result counts and why candidates were rejected.",
@@ -101,54 +245,184 @@
       "RefreshResult": {
         "type": "object",
         "properties": {
-          "market": { "type": "string", "enum": ["US", "KR"] },
-          "gender": { "type": "string", "enum": ["MEN", "WOMEN"] },
-          "ok": { "type": "boolean" },
-          "status": { "type": "integer" },
-          "count": { "type": "integer" },
-          "savedCount": { "type": "integer" },
-          "error": { "type": "string" }
+          "market": {
+            "type": "string",
+            "enum": [
+              "US",
+              "KR"
+            ]
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "MEN",
+              "WOMEN"
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "savedCount": {
+            "type": "integer"
+          },
+          "error": {
+            "type": "string"
+          }
         }
       },
       "Error": {
         "type": "object",
-        "properties": { "error": { "type": "string" } }
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "Brand": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "example": "stone-island"
+          },
+          "englishName": {
+            "type": "string",
+            "example": "STONE ISLAND"
+          },
+          "koreanName": {
+            "type": "string",
+            "nullable": true,
+            "example": "\uc2a4\ud1a4\uc544\uc77c\ub79c\ub4dc"
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Every spelling matched when identifying this brand in a listing."
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "addedBy": {
+            "type": "string",
+            "nullable": true,
+            "description": "Admin email, or \"seed\" for brands shipped with the code."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "BrandCandidate": {
+        "type": "object",
+        "description": "A possible English name for a brand written in another language.",
+        "properties": {
+          "englishName": {
+            "type": "string",
+            "example": "STONE ISLAND"
+          },
+          "slug": {
+            "type": "string",
+            "example": "stone-island"
+          },
+          "koreanName": {
+            "type": "string",
+            "nullable": true
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "confidence": {
+            "type": "integer",
+            "description": "Higher means the name appeared earlier and more often in search results."
+          },
+          "sourceUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "sourceTitle": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       }
     },
     "responses": {
       "Unauthorized": {
         "description": "Missing or incorrect bearer token.",
-        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
       }
     }
   },
-  "security": [{ "serviceToken": [] }],
+  "security": [
+    {
+      "serviceToken": []
+    }
+  ],
   "paths": {
     "/api/catalog/products": {
       "get": {
-        "tags": ["Catalog"],
+        "tags": [
+          "Catalog"
+        ],
         "summary": "Read the product catalog",
         "description": "Returns a page of stored products, newest catalog refresh first. Only available, price-verified products are returned. Unisex products appear under both genders.",
         "parameters": [
-          { "$ref": "#/components/parameters/market" },
-          { "$ref": "#/components/parameters/gender" },
+          {
+            "$ref": "#/components/parameters/market"
+          },
+          {
+            "$ref": "#/components/parameters/gender"
+          },
           {
             "name": "page",
             "in": "query",
-            "schema": { "type": "integer", "minimum": 1, "default": 1 }
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
           },
           {
             "name": "size",
             "in": "query",
             "description": "Products per page. Values above 300 are clamped.",
-            "schema": { "type": "integer", "minimum": 1, "maximum": 300, "default": 60 }
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 300,
+              "default": 60
+            }
           },
           {
             "name": "sort",
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": ["discount-desc", "price-asc", "price-desc", "newest"],
+              "enum": [
+                "discount-desc",
+                "price-asc",
+                "price-desc",
+                "newest"
+              ],
               "default": "discount-desc"
             }
           },
@@ -162,7 +436,33 @@
               "type": "array",
               "items": {
                 "type": "string",
-                "enum": ["adidas", "aime-leon-dore", "auralee", "bape", "beams-plus", "beheavyer", "belier", "comoli", "comme-des-garcons", "danton", "hatchingroom", "hibiscus", "kamiya", "kapital", "kleesier", "lemaire", "needles", "nike", "nuuanu", "ourselves", "pakua", "polyteru", "puma", "recto", "tony-wack"]
+                "enum": [
+                  "adidas",
+                  "aime-leon-dore",
+                  "auralee",
+                  "bape",
+                  "beams-plus",
+                  "beheavyer",
+                  "belier",
+                  "comoli",
+                  "comme-des-garcons",
+                  "danton",
+                  "hatchingroom",
+                  "hibiscus",
+                  "kamiya",
+                  "kapital",
+                  "kleesier",
+                  "lemaire",
+                  "needles",
+                  "nike",
+                  "nuuanu",
+                  "ourselves",
+                  "pakua",
+                  "polyteru",
+                  "puma",
+                  "recto",
+                  "tony-wack"
+                ]
               }
             }
           },
@@ -172,80 +472,434 @@
             "description": "Category slug. \"all\" is treated as no filter.",
             "schema": {
               "type": "string",
-              "enum": ["all", "outerwear", "shirts", "knitwear", "t-shirts", "pants", "shorts", "bags", "shoes", "accessories"]
+              "enum": [
+                "all",
+                "outerwear",
+                "shirts",
+                "knitwear",
+                "t-shirts",
+                "pants",
+                "shorts",
+                "bags",
+                "shoes",
+                "accessories"
+              ]
             }
           }
         ],
         "responses": {
           "200": {
             "description": "A page of catalog products.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CatalogPage" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogPage"
+                }
+              }
+            }
           },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "500": {
             "description": "The catalog could not be read.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }
     },
     "/api/products": {
       "get": {
-        "tags": ["Collection"],
+        "tags": [
+          "Collection"
+        ],
         "summary": "Run a collection pass",
         "description": "Crawls retailers for one market and gender, saves everything it verifies, and returns the products visible to that segment.\n\nThis is expensive and can run for minutes. `mode=direct` crawls retailer catalogs only and skips search-engine discovery, which is much faster and is what the nightly refresh uses.",
         "parameters": [
-          { "$ref": "#/components/parameters/market" },
-          { "$ref": "#/components/parameters/gender" },
+          {
+            "$ref": "#/components/parameters/market"
+          },
+          {
+            "$ref": "#/components/parameters/gender"
+          },
           {
             "name": "mode",
             "in": "query",
             "description": "Set to `direct` to skip search-engine discovery.",
-            "schema": { "type": "string", "enum": ["direct"] }
+            "schema": {
+              "type": "string",
+              "enum": [
+                "direct"
+              ]
+            }
           },
           {
             "name": "debug",
             "in": "query",
             "description": "Include per-brand diagnostics in the response.",
-            "schema": { "type": "string", "enum": ["true"] }
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "Products collected and saved.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CollectionResult" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionResult"
+                }
+              }
+            }
           },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "500": {
             "description": "Search discovery is not configured (SEARXNG_URL missing).",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           },
           "502": {
             "description": "Every brand search failed.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }
     },
     "/api/cron/refresh-products": {
       "get": {
-        "tags": ["Collection"],
+        "tags": [
+          "Collection"
+        ],
         "summary": "Nightly catalog refresh",
         "description": "Triggers a collection pass for one market and gender. Scheduled by Vercel Cron; see vercel.json for the times.",
-        "security": [{ "cronSecret": [] }],
+        "security": [
+          {
+            "cronSecret": []
+          }
+        ],
         "parameters": [
-          { "$ref": "#/components/parameters/market" },
-          { "$ref": "#/components/parameters/gender" }
+          {
+            "$ref": "#/components/parameters/market"
+          },
+          {
+            "$ref": "#/components/parameters/gender"
+          }
         ],
         "responses": {
           "200": {
             "description": "Refresh finished.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RefreshResult" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshResult"
+                }
+              }
+            }
           },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "500": {
             "description": "The refresh could not be completed.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RefreshResult" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/brands": {
+      "get": {
+        "tags": [
+          "Brands"
+        ],
+        "summary": "List tracked brands",
+        "description": "Every brand collection searches for. Falls back to the list shipped with the code when the brands table is missing or empty.",
+        "parameters": [
+          {
+            "name": "includeInactive",
+            "in": "query",
+            "description": "Include brands that have been switched off.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tracked brands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "brands": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Brand"
+                      }
+                    },
+                    "count": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Brands"
+        ],
+        "summary": "Track a new brand",
+        "description": "Adds a brand for both the US and Korean stores. Its sale items are collected from the next run onwards.\n\nThe English name is required because retailers are searched in English. For a name in another language, resolve it with /api/brands/search first and post the chosen candidate.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "englishName"
+                ],
+                "properties": {
+                  "englishName": {
+                    "type": "string",
+                    "example": "Stone Island"
+                  },
+                  "koreanName": {
+                    "type": "string",
+                    "nullable": true,
+                    "example": "\uc2a4\ud1a4\uc544\uc77c\ub79c\ub4dc"
+                  },
+                  "aliases": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Extra spellings to match. The English and Korean names are added automatically."
+                  },
+                  "slug": {
+                    "type": "string",
+                    "description": "Derived from the English name when omitted.",
+                    "pattern": "^[a-z0-9-]{2,60}$"
+                  },
+                  "addedBy": {
+                    "type": "string",
+                    "description": "Admin email, recorded for reference."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The brand is now tracked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "brand": {
+                      "$ref": "#/components/schemas/Brand"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The name is missing, or is not written in Latin script.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "409": {
+            "description": "Already tracked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The brands table has not been created yet.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/brands/search": {
+      "get": {
+        "tags": [
+          "Brands"
+        ],
+        "summary": "Find a brand's English name",
+        "description": "Searches the web for a brand written in any language and returns the English names retailers sell it under, best guess first. Nothing is saved; post the chosen candidate to /api/brands.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "Brand name in any language.",
+            "schema": {
+              "type": "string",
+              "example": "\uc2a4\ud1a4\uc544\uc77c\ub79c\ub4dc"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Candidate brand names.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "query": {
+                      "type": "string"
+                    },
+                    "alreadyLatin": {
+                      "type": "boolean",
+                      "description": "True when the query was already written in Latin script and could be added directly."
+                    },
+                    "candidates": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/BrandCandidate"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No query given.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "502": {
+            "description": "The search could not be completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/brands/{slug}": {
+      "delete": {
+        "tags": [
+          "Brands"
+        ],
+        "summary": "Stop tracking a brand",
+        "description": "Future collection passes skip the brand. Products already collected keep their brand label and stay in the catalog.",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "stone-island"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No longer tracked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "slug": {
+                      "type": "string"
+                    },
+                    "removed": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "That brand is not tracked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }

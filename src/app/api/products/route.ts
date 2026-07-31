@@ -2,7 +2,12 @@ import { createHash } from "node:crypto";
 import pLimit from "p-limit";
 import { NextRequest, NextResponse } from "next/server";
 
-import { BRANDS, type Brand, type BrandSlug } from "@/constants/brands";
+import { type BrandSlug } from "@/constants/brands";
+import {
+  getBrands,
+  type BrandRecord,
+} from "@/lib/products/brand-repository";
+import { setActiveBrands } from "@/lib/products/brand-registry";
 import { inferBrand } from "@/lib/products/infer-brand";
 import { inferCategory } from "@/lib/products/infer-category";
 import { extractProductsFromPage } from "@/lib/products/extract-products-from-page";
@@ -20,7 +25,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-type BrandSearch = Brand;
+type BrandSearch = BrandRecord;
 
 interface BrandSearchDiagnostics {
   explicitBrandMatches: number;
@@ -1046,6 +1051,15 @@ export async function GET(request: NextRequest) {
    * verified products survive even if the slower search-engine phase
    * times out on the serverless runtime.
    */
+  /*
+   * Load the tracked brands once per request and install them for the
+   * synchronous matchers, so brands added from the admin are collected
+   * without a deploy.
+   */
+  const trackedBrands = await getBrands();
+
+  setActiveBrands(trackedBrands);
+
   let directProducts: Product[] = [];
   let directSavedCount = 0;
   let directPersistenceError: string | null = null;
@@ -1096,7 +1110,7 @@ export async function GET(request: NextRequest) {
 
   const brandLimit = pLimit(2);
 
-  const searchableBrands = BRANDS.filter(
+  const searchableBrands = trackedBrands.filter(
     (brand) => gender !== "WOMEN" || !MEN_ONLY_BRAND_SLUGS.has(brand.slug),
   );
 
