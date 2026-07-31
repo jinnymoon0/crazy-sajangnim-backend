@@ -1,0 +1,168 @@
+export const BRANDS = [
+  {
+    slug: "adidas",
+    englishName: "ADIDAS",
+    koreanName: "아디다스",
+    aliases: ["ADIDAS", "아디다스"],
+  },
+  {
+    slug: "aime-leon-dore",
+    englishName: "AIMÉ LEON DORE",
+    koreanName: "에메레온도르",
+    aliases: [
+      "AIMÉ LEON DORE",
+      "AIME LEON DORE",
+      "AIME LEON DORÉ",
+      "ALD",
+      "에메레온도르",
+      "에메 레온 도르",
+    ],
+  },
+  {
+    slug: "auralee",
+    englishName: "AURALEE",
+    koreanName: "오라리",
+    aliases: ["AURALEE", "오라리"],
+  },
+  {
+    slug: "bape",
+    englishName: "BAPE",
+    koreanName: "베이프",
+    aliases: ["BAPE", "A BATHING APE", "BAPESTA", "베이프", "어 베이싱 에이프"],
+  },
+  {
+    slug: "beams-plus",
+    englishName: "BEAMS PLUS",
+    koreanName: "빔즈 플러스",
+    aliases: ["BEAMS PLUS", "BEAMS+", "빔즈 플러스", "빔스 플러스"],
+  },
+  {
+    slug: "beheavyer",
+    englishName: "BEHEAVYER",
+    koreanName: "비헤비어",
+    aliases: ["BEHEAVYER", "BE HEAVYER", "BEHAVIOR", "비헤비어", "비헤비어러"],
+  },
+  {
+    slug: "belier",
+    englishName: "BELIER",
+    koreanName: "벨리에",
+    aliases: ["BELIER", "BÉLIER", "벨리에"],
+  },
+  {
+    slug: "comoli",
+    englishName: "COMOLI",
+    koreanName: "코모리",
+    aliases: ["COMOLI", "코모리"],
+  },
+  {
+    slug: "comme-des-garcons",
+    englishName: "COMME DES GARÇONS",
+    koreanName: "꼼데가르송",
+    aliases: [
+      "COMME DES GARÇONS",
+      "COMME DES GARCONS",
+      "CDG",
+      "꼼데가르송",
+      "꼼 데 가르송",
+    ],
+  },
+  {
+    slug: "danton",
+    englishName: "DANTON",
+    koreanName: "단톤",
+    aliases: ["DANTON", "단톤"],
+  },
+  {
+    slug: "hatchingroom",
+    englishName: "HATCHINGROOM",
+    koreanName: "해칭룸",
+    aliases: ["HATCHINGROOM", "HATCHING ROOM", "해칭룸", "해칭 룸"],
+  },
+  {
+    slug: "hibiscus",
+    englishName: "HIBISCUS",
+    koreanName: "히비스커스",
+    aliases: ["HIBISCUS", "히비스커스"],
+  },
+  {
+    slug: "kamiya",
+    englishName: "KAMIYA",
+    koreanName: "카미야",
+    aliases: ["KAMIYA", "카미야"],
+  },
+  {
+    slug: "kapital",
+    englishName: "KAPITAL",
+    koreanName: "캐피탈",
+    aliases: ["KAPITAL", "캐피탈"],
+  },
+  {
+    slug: "kleesier",
+    englishName: "KLEESIER",
+    koreanName: "클리시어",
+    aliases: ["KLEESIER", "클리시어"],
+  },
+  {
+    slug: "lemaire",
+    englishName: "LEMAIRE",
+    koreanName: "르메르",
+    aliases: ["LEMAIRE", "CHRISTOPHE LEMAIRE", "르메르"],
+  },
+  {
+    slug: "needles",
+    englishName: "NEEDLES",
+    koreanName: "니들스",
+    aliases: ["NEEDLES", "NEPENTHES NEEDLES", "ニードルズ", "니들스"],
+  },
+  {
+    slug: "nike",
+    englishName: "NIKE",
+    koreanName: "나이키",
+    aliases: ["NIKE", "NIKE SPORTSWEAR", "나이키"],
+  },
+  {
+    slug: "nuuanu",
+    englishName: "NUUANU",
+    koreanName: "누아누",
+    aliases: ["NUUANU", "NUU ANU", "누아누"],
+  },
+  {
+    slug: "ourselves",
+    englishName: "OURSELVES",
+    koreanName: "아워셀브스",
+    aliases: ["OURSELVES", "OUR SELVES", "아워셀브스", "아워 셀브스"],
+  },
+  {
+    slug: "pakua",
+    englishName: "PAKUA",
+    koreanName: "파쿠아",
+    aliases: ["PAKUA", "PA KUA", "파쿠아"],
+  },
+  {
+    slug: "polyteru",
+    englishName: "POLYTERU",
+    koreanName: "폴리테루",
+    aliases: ["POLYTERU", "POLY TERU", "폴리테루"],
+  },
+  {
+    slug: "puma",
+    englishName: "PUMA",
+    koreanName: "퓨마",
+    aliases: ["PUMA", "PUMA SELECT", "퓨마"],
+  },
+  {
+    slug: "recto",
+    englishName: "RECTO",
+    koreanName: "렉토",
+    aliases: ["RECTO", "렉토"],
+  },
+  {
+    slug: "tony-wack",
+    englishName: "TONY WACK",
+    koreanName: "토니웩",
+    aliases: ["TONY WACK", "TONYWACK", "TONY-WACK", "토니웩", "토니 왁"],
+  },
+] as const;
+
+export type Brand = (typeof BRANDS)[number];
+export type BrandSlug = Brand["slug"];
