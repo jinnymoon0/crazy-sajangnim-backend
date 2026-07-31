@@ -1,0 +1,254 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Crazy Sajangnim Backend",
+    "version": "1.0.0",
+    "description": "Product collection and catalog service for the Crazy Sajangnim shop. Crawls retailer catalogs, verifies sale prices against the retailer's own data, stores them in Supabase, and serves the catalog to the frontend.\n\nThese endpoints are called server-to-server. The frontend proxies catalog reads so the service token never reaches a browser."
+  },
+  "servers": [
+    { "url": "http://localhost:3002", "description": "Local development" },
+    { "url": "https://crazy-sajangnim-backend.vercel.app", "description": "Production" }
+  ],
+  "tags": [
+    { "name": "Catalog", "description": "Reading stored products" },
+    { "name": "Collection", "description": "Crawling retailers and refreshing the catalog" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "serviceToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Value of BACKEND_API_TOKEN. Sent as `Authorization: Bearer <token>`. When the variable is unset on the server the check is skipped, which keeps local development simple."
+      },
+      "cronSecret": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Value of CRON_SECRET. Vercel Cron sends this automatically."
+      }
+    },
+    "parameters": {
+      "market": {
+        "name": "market",
+        "in": "query",
+        "description": "Storefront region. Defaults to US when omitted or unrecognised.",
+        "schema": { "type": "string", "enum": ["US", "KR"], "default": "US" }
+      },
+      "gender": {
+        "name": "gender",
+        "in": "query",
+        "description": "Segment to read. Unisex products appear in both. Defaults to MEN.",
+        "schema": { "type": "string", "enum": ["MEN", "WOMEN"], "default": "MEN" }
+      }
+    },
+    "schemas": {
+      "Product": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "sourceName": { "type": "string", "example": "garmentory.com · TONS / Pittsburgh, PA" },
+          "sourceUrl": { "type": "string", "format": "uri" },
+          "market": { "type": "string", "enum": ["US", "KR"] },
+          "currency": { "type": "string", "enum": ["USD", "KRW"] },
+          "gender": { "type": "string", "enum": ["MEN", "WOMEN", "UNISEX"] },
+          "brandSlug": { "type": "string", "example": "auralee" },
+          "brandName": { "type": "string", "example": "AURALEE" },
+          "productName": { "type": "string" },
+          "categorySlug": {
+            "type": "string",
+            "enum": ["outerwear", "shirts", "knitwear", "t-shirts", "pants", "shorts", "bags", "shoes", "accessories"]
+          },
+          "imageUrl": { "type": "string" },
+          "originalPrice": { "type": "number", "nullable": true },
+          "salePrice": { "type": "number" },
+          "discountPercentage": { "type": "integer", "nullable": true },
+          "saleVerification": {
+            "type": "string",
+            "enum": ["VERIFIED", "UNVERIFIED"],
+            "description": "VERIFIED means the retailer published both the sale and original price for this product. Only verified products are shown on the site."
+          },
+          "isAvailable": { "type": "boolean" },
+          "collectedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CatalogPage": {
+        "type": "object",
+        "properties": {
+          "products": { "type": "array", "items": { "$ref": "#/components/schemas/Product" } },
+          "page": { "type": "integer" },
+          "size": { "type": "integer" },
+          "total": { "type": "integer", "description": "Matching products across all pages." },
+          "hasMore": { "type": "boolean" },
+          "market": { "type": "string", "enum": ["US", "KR"] },
+          "gender": { "type": "string", "enum": ["MEN", "WOMEN"] },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CollectionResult": {
+        "type": "object",
+        "properties": {
+          "products": { "type": "array", "items": { "$ref": "#/components/schemas/Product" } },
+          "count": { "type": "integer" },
+          "market": { "type": "string", "enum": ["US", "KR"] },
+          "gender": { "type": "string", "enum": ["MEN", "WOMEN"] },
+          "updatedAt": { "type": "string", "format": "date-time" },
+          "diagnostics": {
+            "type": "object",
+            "description": "Only present when debug=true. Reports per-brand result counts and why candidates were rejected.",
+            "additionalProperties": true
+          }
+        }
+      },
+      "RefreshResult": {
+        "type": "object",
+        "properties": {
+          "market": { "type": "string", "enum": ["US", "KR"] },
+          "gender": { "type": "string", "enum": ["MEN", "WOMEN"] },
+          "ok": { "type": "boolean" },
+          "status": { "type": "integer" },
+          "count": { "type": "integer" },
+          "savedCount": { "type": "integer" },
+          "error": { "type": "string" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": { "error": { "type": "string" } }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Missing or incorrect bearer token.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      }
+    }
+  },
+  "security": [{ "serviceToken": [] }],
+  "paths": {
+    "/api/catalog/products": {
+      "get": {
+        "tags": ["Catalog"],
+        "summary": "Read the product catalog",
+        "description": "Returns a page of stored products, newest catalog refresh first. Only available, price-verified products are returned. Unisex products appear under both genders.",
+        "parameters": [
+          { "$ref": "#/components/parameters/market" },
+          { "$ref": "#/components/parameters/gender" },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "default": 1 }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "Products per page. Values above 300 are clamped.",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 300, "default": 60 }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["discount-desc", "price-asc", "price-desc", "newest"],
+              "default": "discount-desc"
+            }
+          },
+          {
+            "name": "brand",
+            "in": "query",
+            "description": "Brand slug. Repeat the parameter to filter on several brands.",
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["adidas", "aime-leon-dore", "auralee", "bape", "beams-plus", "beheavyer", "belier", "comoli", "comme-des-garcons", "danton", "hatchingroom", "hibiscus", "kamiya", "kapital", "kleesier", "lemaire", "needles", "nike", "nuuanu", "ourselves", "pakua", "polyteru", "puma", "recto", "tony-wack"]
+              }
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "description": "Category slug. \"all\" is treated as no filter.",
+            "schema": {
+              "type": "string",
+              "enum": ["all", "outerwear", "shirts", "knitwear", "t-shirts", "pants", "shorts", "bags", "shoes", "accessories"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of catalog products.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CatalogPage" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": {
+            "description": "The catalog could not be read.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      }
+    },
+    "/api/products": {
+      "get": {
+        "tags": ["Collection"],
+        "summary": "Run a collection pass",
+        "description": "Crawls retailers for one market and gender, saves everything it verifies, and returns the products visible to that segment.\n\nThis is expensive and can run for minutes. `mode=direct` crawls retailer catalogs only and skips search-engine discovery, which is much faster and is what the nightly refresh uses.",
+        "parameters": [
+          { "$ref": "#/components/parameters/market" },
+          { "$ref": "#/components/parameters/gender" },
+          {
+            "name": "mode",
+            "in": "query",
+            "description": "Set to `direct` to skip search-engine discovery.",
+            "schema": { "type": "string", "enum": ["direct"] }
+          },
+          {
+            "name": "debug",
+            "in": "query",
+            "description": "Include per-brand diagnostics in the response.",
+            "schema": { "type": "string", "enum": ["true"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Products collected and saved.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CollectionResult" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": {
+            "description": "Search discovery is not configured (SEARXNG_URL missing).",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "502": {
+            "description": "Every brand search failed.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      }
+    },
+    "/api/cron/refresh-products": {
+      "get": {
+        "tags": ["Collection"],
+        "summary": "Nightly catalog refresh",
+        "description": "Triggers a collection pass for one market and gender. Scheduled by Vercel Cron; see vercel.json for the times.",
+        "security": [{ "cronSecret": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/market" },
+          { "$ref": "#/components/parameters/gender" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refresh finished.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RefreshResult" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": {
+            "description": "The refresh could not be completed.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RefreshResult" } } }
+          }
+        }
+      }
+    }
+  }
+}

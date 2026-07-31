@@ -19,6 +19,22 @@ product tables directly; it calls this service.
 Both product routes answer JSON and are meant to be called
 server-to-server, not from a browser.
 
+## API reference
+
+An OpenAPI 3 description of every endpoint lives in
+`src/openapi/spec.json` and is browsable as Swagger UI at
+[/docs](http://localhost:3002/docs), with the raw document at
+`/api/openapi`.
+
+Because the reference describes an authenticated internal service, both
+are available in development but hidden in production unless
+`ENABLE_API_DOCS=true` is set — they answer 404 otherwise. To try a
+request from the page, press **Authorize** and enter the value of
+`BACKEND_API_TOKEN`.
+
+Keep the spec in step with the routes when parameters or responses
+change; nothing generates it automatically.
+
 ## Environment
 
 Copy `.env.example` to `.env.local` and fill in:
