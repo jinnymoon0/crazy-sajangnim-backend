@@ -21,6 +21,9 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// Adding a brand probes a handful of domains for its own shop.
+export const maxDuration = 60;
+
 const createBrandSchema = z.object({
   englishName: z
     .string()
