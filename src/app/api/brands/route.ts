@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import pLimit from "p-limit";
 import { z } from "zod";
 
 import {
@@ -65,57 +66,51 @@ export async function GET(request: NextRequest) {
   }
 
   /*
-   * How many sale items each brand currently contributes. A brand with
-   * none is tracked correctly but simply has nothing on sale at the
-   * retailers, which is otherwise indistinguishable from a failure.
+   * Ask the database to count each brand rather than reading the
+   * catalog and counting here. A response is capped at a thousand rows
+   * however large a limit is asked for, so counting rows we fetched
+   * undercounted every brand past that cap — and since rows come back
+   * oldest first, the brands that read as empty were exactly the ones
+   * added most recently.
    */
-  const counts = new Map<string, number>();
+  const counts = new Map<string, number | null>();
 
-  try {
-    const supabase = getSupabaseAdmin();
+  const limit = pLimit(6);
 
-    /*
-     * The database caps a single response at a thousand rows whatever
-     * limit is asked for, so read the catalog a page at a time. Asking
-     * for it in one go silently counted only the first page, which left
-     * every brand beyond it looking like it had nothing on sale.
-     */
-    const PAGE_SIZE = 1000;
+  await Promise.all(
+    brands.map((brand) =>
+      limit(async () => {
+        try {
+          const { count, error } = await getSupabaseAdmin()
+            .from("product_catalog")
+            .select("id", { count: "exact", head: true })
+            .eq("brand_slug", brand.slug)
+            .eq("is_available", true)
+            .eq("sale_verification", "VERIFIED");
 
-    for (let page = 0; ; page += 1) {
-      const from = page * PAGE_SIZE;
+          if (error) {
+            throw new Error(error.message);
+          }
 
-      const { data, error } = await supabase
-        .from("product_catalog")
-        .select("brand_slug")
-        .eq("is_available", true)
-        .eq("sale_verification", "VERIFIED")
-        .order("brand_slug")
-        .range(from, from + PAGE_SIZE - 1);
+          counts.set(brand.slug, count ?? 0);
+        } catch (error) {
+          console.error(`Count failed for ${brand.slug}:`, error);
 
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      for (const row of data ?? []) {
-        const slug = row.brand_slug as string;
-
-        counts.set(slug, (counts.get(slug) ?? 0) + 1);
-      }
-
-      if (!data || data.length < PAGE_SIZE) {
-        break;
-      }
-    }
-  } catch (error) {
-    console.error("Brand product counts failed:", error);
-  }
+          /*
+           * Null, not zero. A brand whose count could not be read has
+           * not been shown to have nothing on sale.
+           */
+          counts.set(brand.slug, null);
+        }
+      }),
+    ),
+  );
 
   return NextResponse.json(
     {
       brands: brands.map((brand) => ({
         ...brand,
-        productCount: counts.get(brand.slug) ?? 0,
+        productCount: counts.get(brand.slug) ?? null,
       })),
       count: brands.length,
     },
