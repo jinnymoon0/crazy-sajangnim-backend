@@ -409,6 +409,98 @@
             "description": "Which storefront the shop's prices belong to, decided by the currency it charges in."
           }
         }
+      },
+      "BrandBreakdown": {
+        "type": "object",
+        "description": "How one brand's sale items are spread across the shop.",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "englishName": {
+            "type": "string"
+          },
+          "koreanName": {
+            "type": "string",
+            "nullable": true
+          },
+          "storeDomain": {
+            "type": "string",
+            "nullable": true,
+            "description": "The brand's own website, when one is known."
+          },
+          "total": {
+            "type": "integer",
+            "description": "Sale items across both storefronts."
+          },
+          "totalByMarket": {
+            "type": "object",
+            "properties": {
+              "US": {
+                "type": "integer"
+              },
+              "KR": {
+                "type": "integer"
+              }
+            }
+          },
+          "segments": {
+            "type": "array",
+            "description": "Items per section of the shop. Unisex items appear in both the men's and women's sections, so these can add up to more than total.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "market": {
+                  "type": "string",
+                  "enum": [
+                    "US",
+                    "KR"
+                  ]
+                },
+                "gender": {
+                  "type": "string",
+                  "enum": [
+                    "MEN",
+                    "WOMEN"
+                  ]
+                },
+                "count": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "sources": {
+            "type": "object",
+            "description": "Items per site the brand was found on, kept separate per storefront and ordered by count.",
+            "properties": {
+              "US": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/BrandSourceCount"
+                }
+              },
+              "KR": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/BrandSourceCount"
+                }
+              }
+            }
+          }
+        }
+      },
+      "BrandSourceCount": {
+        "type": "object",
+        "properties": {
+          "sourceName": {
+            "type": "string",
+            "example": "musinsa.com"
+          },
+          "count": {
+            "type": "integer"
+          }
+        }
       }
     },
     "responses": {
@@ -1051,6 +1143,55 @@
           },
           "500": {
             "description": "The collection run failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/brands/{slug}/breakdown": {
+      "get": {
+        "summary": "Where one brand's sale items are",
+        "description": "Counts a brand's sale items per section of the shop (US men, US women, Korea men, Korea women) and per site they came from, kept separate for each storefront.",
+        "tags": [
+          "Brands"
+        ],
+        "security": [
+          {
+            "serviceToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The breakdown.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandBreakdown"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "That brand is not tracked.",
             "content": {
               "application/json": {
                 "schema": {
