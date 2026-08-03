@@ -328,6 +328,24 @@
             ],
             "nullable": true,
             "description": "The brand's own shop, when one was found."
+          },
+          "productCount": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Sale items across both storefronts. Null when the count could not be read — which is not the same as none on sale."
+          },
+          "productCountByMarket": {
+            "type": "object",
+            "nullable": true,
+            "description": "Sale items per storefront. A brand can be on sale in one and not the other, which the total alone does not show.",
+            "properties": {
+              "US": {
+                "type": "integer"
+              },
+              "KR": {
+                "type": "integer"
+              }
+            }
           }
         }
       },
@@ -675,7 +693,7 @@
           "Brands"
         ],
         "summary": "List tracked brands",
-        "description": "Every brand collection searches for. Falls back to the list shipped with the code when the brands table is missing or empty.",
+        "description": "List tracked brands. With withCounts=true each brand carries how many sale items it has, per storefront and in total.",
         "parameters": [
           {
             "name": "includeInactive",

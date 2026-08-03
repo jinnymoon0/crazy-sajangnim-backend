@@ -18,6 +18,7 @@ import {
   unauthorizedResponse,
 } from "@/lib/service-auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import type { Market } from "@/types/product";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,27 +73,41 @@ export async function GET(request: NextRequest) {
    * undercounted every brand past that cap — and since rows come back
    * oldest first, the brands that read as empty were exactly the ones
    * added most recently.
+   *
+   * Counted per storefront, because one total hides which shop a
+   * brand's items are in: Stussy's were all American, so the Korean
+   * store showed none of the 31 the total promised.
    */
-  const counts = new Map<string, number | null>();
+  const counts = new Map<string, Record<Market, number> | null>();
 
   const limit = pLimit(6);
+
+  async function countIn(slug: string, market: Market): Promise<number> {
+    const { count, error } = await getSupabaseAdmin()
+      .from("product_catalog")
+      .select("id", { count: "exact", head: true })
+      .eq("brand_slug", slug)
+      .eq("market", market)
+      .eq("is_available", true)
+      .eq("sale_verification", "VERIFIED");
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return count ?? 0;
+  }
 
   await Promise.all(
     brands.map((brand) =>
       limit(async () => {
         try {
-          const { count, error } = await getSupabaseAdmin()
-            .from("product_catalog")
-            .select("id", { count: "exact", head: true })
-            .eq("brand_slug", brand.slug)
-            .eq("is_available", true)
-            .eq("sale_verification", "VERIFIED");
+          const [US, KR] = await Promise.all([
+            countIn(brand.slug, "US"),
+            countIn(brand.slug, "KR"),
+          ]);
 
-          if (error) {
-            throw new Error(error.message);
-          }
-
-          counts.set(brand.slug, count ?? 0);
+          counts.set(brand.slug, { US, KR });
         } catch (error) {
           console.error(`Count failed for ${brand.slug}:`, error);
 
@@ -108,10 +123,15 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json(
     {
-      brands: brands.map((brand) => ({
-        ...brand,
-        productCount: counts.get(brand.slug) ?? null,
-      })),
+      brands: brands.map((brand) => {
+        const byMarket = counts.get(brand.slug) ?? null;
+
+        return {
+          ...brand,
+          productCount: byMarket ? byMarket.US + byMarket.KR : null,
+          productCountByMarket: byMarket,
+        };
+      }),
       count: brands.length,
     },
     { headers: { "Cache-Control": "no-store" } },
