@@ -155,12 +155,25 @@ async function shopCurrency(domain: string): Promise<string | null> {
  * Names as loosely as the shops write them: "NANAMICA 2026 SS" and
  * "Aimé Leon Dore" both have to match the brand they belong to.
  */
-function normalizeName(value: string): string {
+export function normalizeName(value: string): string {
   return value
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "");
+}
+
+/*
+ * Whether a Shopify product's vendor is the brand whose shop we are
+ * reading. Stores that carry other labels alongside their own list them
+ * by vendor, so this is what keeps a Nike jacket sold at Kith from
+ * being filed under KITH.
+ */
+export function isBrandVendor(
+  vendor: string | undefined,
+  englishName: string,
+): boolean {
+  return normalizeName(vendor ?? "").includes(normalizeName(englishName));
 }
 
 /*
@@ -195,10 +208,8 @@ async function sellsBrand(
     return false;
   }
 
-  const brand = normalizeName(englishName);
-
   const matching = products.filter((product) =>
-    normalizeName(product.vendor ?? "").includes(brand),
+    isBrandVendor(product.vendor, englishName),
   ).length;
 
   return matching >= products.length / 2;

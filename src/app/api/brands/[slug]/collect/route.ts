@@ -132,11 +132,42 @@ export async function POST(request: Request, context: RouteContext) {
       }
     }
 
+    /*
+     * A brand only earns a place in the shop by having something on
+     * sale, whether at its own store or at the retailers. Callers
+     * adding one ask for this so an empty brand does not leave a filter
+     * behind that shows nothing.
+     */
+    const total = MARKETS.reduce(
+      (sum, market) => sum + (perMarket[market] ?? 0),
+      0,
+    );
+
+    const dropIfEmpty =
+      new URL(request.url).searchParams.get("dropIfEmpty") === "true";
+
+    let removed = false;
+
+    if (total === 0 && dropIfEmpty) {
+      const { error } = await getSupabaseAdmin()
+        .from("brands")
+        .delete()
+        .eq("slug", brand.slug);
+
+      if (error) {
+        console.error("Could not drop the empty brand:", error.message);
+      } else {
+        removed = true;
+      }
+    }
+
     return NextResponse.json({
       slug: brand.slug,
       englishName: brand.englishName,
+      storeDomain: withStore.storeDomain ?? null,
       collected: perMarket,
       saved,
+      removed,
     });
   } catch (error) {
     console.error("Brand collection error:", error);

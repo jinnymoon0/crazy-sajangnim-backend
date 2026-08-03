@@ -944,7 +944,7 @@
           "Brands"
         ],
         "summary": "Collect one brand's sale items now",
-        "description": "Collect a brand's sale items from every source right away, rather than waiting for the nightly refresh. A brand with no shop on file has one looked for and saved first. `collected` is the number of sale items found per storefront; zero in both means the brand has nothing on sale anywhere we search.",
+        "description": "Collect a brand's sale items from its own website and every sale site we search, rather than waiting for the nightly refresh. A brand with no website on file has one looked for and saved first. `collected` is the number of sale items per storefront; `removed` says whether the brand was dropped for having none.",
         "parameters": [
           {
             "name": "slug",
@@ -954,6 +954,16 @@
               "type": "string",
               "example": "c-p-company"
             }
+          },
+          {
+            "name": "dropIfEmpty",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "description": "Stop tracking the brand when the run finds nothing. Use it for a brand that was just added: a brand with no sale items at its own website or at any of the sale sites has nothing to show, and would otherwise leave an empty filter in the shop. Leave it off when re-collecting a brand already in the shop, which has simply sold through."
           }
         ],
         "responses": {
@@ -984,6 +994,15 @@
                     },
                     "saved": {
                       "type": "integer"
+                    },
+                    "storeDomain": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "The brand's own website, when one is known."
+                    },
+                    "removed": {
+                      "type": "boolean",
+                      "description": "The brand was dropped because the run found nothing and dropIfEmpty was set."
                     }
                   }
                 },

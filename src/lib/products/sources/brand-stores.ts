@@ -3,6 +3,7 @@ import * as cheerio from "cheerio";
 import pLimit from "p-limit";
 
 import { getActiveBrands } from "@/lib/products/brand-registry";
+import { isBrandVendor } from "@/lib/products/brand-store-discovery";
 import type { BrandRecord } from "@/lib/products/brand-repository";
 import { inferCategory } from "@/lib/products/infer-category";
 import { parseCafe24Products } from "@/lib/products/retailers/cafe24";
@@ -95,6 +96,7 @@ interface ShopifyVariant {
 
 interface ShopifyProduct {
   title?: string;
+  vendor?: string;
   handle?: string;
   product_type?: string;
   tags?: string[] | string;
@@ -149,6 +151,15 @@ async function crawlShopifyStore(
       const handle = item.handle?.trim();
 
       if (!title || !handle) {
+        continue;
+      }
+
+      /*
+       * Some labels sell other brands alongside their own. Their items
+       * belong to those brands, not to the shop's owner, so take only
+       * what the shop lists under the brand itself.
+       */
+      if (!isBrandVendor(item.vendor, brand.englishName)) {
         continue;
       }
 
