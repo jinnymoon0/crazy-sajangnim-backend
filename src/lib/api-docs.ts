@@ -1,13 +1,13 @@
 /*
- * The API reference describes an authenticated internal service, so it
- * is served only where it is useful: in development, or in production
- * when ENABLE_API_DOCS is set. Both the viewer and the spec itself
- * honour this.
+ * The API reference is served at the service root, so that opening the
+ * backend shows what it can do.
+ *
+ * It describes the shape of the API, not its data: every endpoint it
+ * lists still needs the service token, and the document itself carries
+ * no secrets. Set ENABLE_API_DOCS=false on a deployment that should
+ * keep its API surface private — the viewer and the document both stop
+ * answering.
  */
 export function apiDocsEnabled(): boolean {
-  if (process.env.NODE_ENV !== "production") {
-    return true;
-  }
-
-  return process.env.ENABLE_API_DOCS === "true";
+  return process.env.ENABLE_API_DOCS !== "false";
 }

@@ -7,6 +7,10 @@
   },
   "servers": [
     {
+      "url": "/",
+      "description": "This deployment — whichever host you opened these docs on"
+    },
+    {
       "url": "http://localhost:3002",
       "description": "Local development"
     },
@@ -27,6 +31,10 @@
     {
       "name": "Brands",
       "description": "Which brands are tracked and collected"
+    },
+    {
+      "name": "Docs",
+      "description": "The service's own API description."
     }
   ],
   "components": {
@@ -797,6 +805,16 @@
                 "true"
               ]
             }
+          },
+          {
+            "name": "withCounts",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "description": "Include how many sale items each brand has, per storefront and in total. Costs a count query per brand, so leave it off when only the names are needed."
           }
         ],
         "responses": {
@@ -1199,6 +1217,31 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/openapi": {
+      "get": {
+        "summary": "This document",
+        "description": "The OpenAPI description of this service, as served to the docs page. Answers 404 when the docs are turned off.",
+        "tags": [
+          "Docs"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The OpenAPI document.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The docs are turned off on this deployment."
           }
         }
       }

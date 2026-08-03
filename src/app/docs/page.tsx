@@ -1,23 +1,11 @@
-import { notFound } from "next/navigation";
-
-import { apiDocsEnabled } from "@/lib/api-docs";
-
-import SwaggerViewer from "./SwaggerViewer";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Crazy Sajangnim Backend — API docs",
-};
-
+/*
+ * The reference lives at the service root now. Kept so existing links
+ * to /docs still land on it.
+ */
 export default function ApiDocsPage() {
-  if (!apiDocsEnabled()) {
-    notFound();
-  }
-
-  return (
-    <main style={{ minHeight: "100vh", background: "#fff" }}>
-      <SwaggerViewer />
-    </main>
-  );
+  redirect("/");
 }
