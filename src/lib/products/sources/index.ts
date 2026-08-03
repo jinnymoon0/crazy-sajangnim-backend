@@ -6,6 +6,7 @@ import { collectCafe24Products } from "./cafe24-search";
 import { collectGarmentoryProducts } from "./garmentory";
 import { collectHbxProducts } from "./hbx";
 import { collectBrandStoreProducts } from "./brand-stores";
+import { collectEndClothingProducts } from "./end-clothing";
 import { collectMusinsaProducts } from "./musinsa";
 import { collectOkmallProducts } from "./okmall";
 import { collectTwentyNineCmProducts } from "./twenty-nine-cm";
@@ -38,12 +39,14 @@ export async function collectDirectProducts(
           () => collectMusinsaProducts(brands),
           () => collectTwentyNineCmProducts(brands),
           () => collectBrandStoreProducts(market, brands),
+          () => collectEndClothingProducts(market),
         ]
       : [
           () => collectShopifyProducts(),
           () => collectGarmentoryProducts(brands),
           () => collectHbxProducts(brands),
           () => collectBrandStoreProducts(market, brands),
+          () => collectEndClothingProducts(market),
         ];
 
   const results = await Promise.allSettled(
