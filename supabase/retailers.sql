@@ -63,5 +63,7 @@ values
   ('unionlosangeles.com',         'shopify', 'US', 'MEN',    'seed'),
   ('stagprovisions.com',          'shopify', 'US', 'MEN',    'seed'),
   ('snakeoilprovisions.com',      'shopify', 'US', 'MEN',    'seed'),
-  ('featuresneakerboutique.com',  'shopify', 'US', 'MEN',    'seed')
+  ('featuresneakerboutique.com',  'shopify', 'US', 'MEN',    'seed'),
+  ('8division.com',               'cafe24',  'KR', 'UNISEX', 'seed'),
+  ('sculpstore.com',              'cafe24',  'KR', 'UNISEX', 'seed')
 on conflict (domain) do nothing;

@@ -5,6 +5,7 @@ import {
   getActiveBrands,
 } from "@/lib/products/brand-registry";
 import type { BrandRecord } from "@/lib/products/brand-repository";
+import { getRetailers } from "@/lib/products/retailer-repository";
 import { parseCafe24Products } from "@/lib/products/retailers/cafe24";
 import type { Product } from "@/types/product";
 
@@ -13,6 +14,11 @@ import { dedupeProducts, fetchWithTimeout, resolveGender } from "./shared";
 /*
  * Korean boutique stockists on the Cafe24 platform whose public search
  * pages are parseable by the existing Cafe24 retailer adapter.
+ */
+/*
+ * The shops this list held now live in the retailers table, so a cafe24
+ * shop found while adding a brand is crawled from the next run onwards.
+ * Kept as the fallback for when the table cannot be read.
  */
 const CAFE24_STORES = ["8division.com", "sculpstore.com"];
 
@@ -87,7 +93,14 @@ export async function collectCafe24Products(
 ): Promise<Product[]> {
   const limit = pLimit(4);
 
-  const tasks = CAFE24_STORES.flatMap((domain) =>
+  const stored = await getRetailers("cafe24");
+
+  const domains =
+    stored.length > 0
+      ? stored.map((retailer) => retailer.domain)
+      : CAFE24_STORES;
+
+  const tasks = domains.flatMap((domain) =>
     brands.map((brand) => limit(() => crawlStoreBrand(domain, brand))),
   );
 
