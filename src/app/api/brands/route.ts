@@ -13,6 +13,9 @@ import {
   discoverBrandStore,
   type DiscoveredStore,
 } from "@/lib/products/brand-store-discovery";
+import { discoverRetailers } from "@/lib/products/retailer-discovery";
+import { rememberRetailers } from "@/lib/products/retailer-repository";
+import { searchProviderName } from "@/lib/search/web-search";
 import {
   isAuthorizedService,
   unauthorizedResponse,
@@ -23,8 +26,13 @@ import type { Market } from "@/types/product";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Adding a brand probes a handful of domains for its own shop.
-export const maxDuration = 60;
+/*
+ * Adding a brand probes the domains it might trade under, then the
+ * shops search suggests stock it — each of which has to answer for
+ * itself before it is kept. That is slower than a request usually is,
+ * and the alternative is adding a brand the collectors cannot yet read.
+ */
+export const maxDuration = 300;
 
 const createBrandSchema = z.object({
   englishName: z
@@ -227,6 +235,25 @@ export async function POST(request: Request) {
       console.error("Brand store discovery failed:", error);
     }
 
+    /*
+     * Then the shops that stock it. Search proposes; each candidate has
+     * to show the brand in its own catalogue before it is kept, so a
+     * listicle or a resale site never becomes a source.
+     *
+     * With no search provider configured this finds nothing and the
+     * brand is added exactly as before — this is an improvement on the
+     * collectors, not something they wait on.
+     */
+    let stockists = 0;
+
+    try {
+      const found = await discoverRetailers(englishName, koreanName);
+
+      stockists = await rememberRetailers(found, slug);
+    } catch (error) {
+      console.error("Stockist discovery failed:", error);
+    }
+
     const supabase = getSupabaseAdmin();
 
     const row = {
@@ -310,6 +337,8 @@ export async function POST(request: Request) {
           aliases: data.aliases ?? [],
           isActive: data.is_active,
           store,
+          stockistsFound: stockists,
+          searchProvider: searchProviderName(),
         },
       },
       { status: 201 },

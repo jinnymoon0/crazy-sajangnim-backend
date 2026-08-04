@@ -12,6 +12,7 @@ import {
   isReasonablePrice,
   resolveGender,
 } from "./shared";
+import { getRetailers } from "@/lib/products/retailer-repository";
 
 interface ShopifyStore {
   domain: string;
@@ -19,9 +20,10 @@ interface ShopifyStore {
 }
 
 /*
- * United States stockists of the tracked brands whose Shopify storefronts
- * expose the public /products.json catalog endpoint in USD.
- * Verified empirically before inclusion.
+ * The stockists this list used to hold now live in the retailers table,
+ * so a shop found while adding a brand is read from the next run
+ * onwards without a redeploy. Kept here only as the fallback the
+ * repository falls back to.
  */
 const SHOPIFY_STORES: ShopifyStore[] = [
   { domain: "svrn.com", defaultGender: "UNISEX" },
@@ -255,8 +257,23 @@ async function crawlStore(store: ShopifyStore): Promise<Product[]> {
 export async function collectShopifyProducts(): Promise<Product[]> {
   const limit = pLimit(4);
 
+  const stored = await getRetailers("shopify");
+
+  /*
+   * Only the shops that price in dollars: this collector fills the
+   * American storefront, and a Korean shop's won would be read as USD.
+   */
+  const stores: ShopifyStore[] = stored
+    .filter((retailer) => retailer.market === "US")
+    .map((retailer) => ({
+      domain: retailer.domain,
+      defaultGender: retailer.defaultGender,
+    }));
+
   const results = await Promise.allSettled(
-    SHOPIFY_STORES.map((store) => limit(() => crawlStore(store))),
+    (stores.length > 0 ? stores : SHOPIFY_STORES).map((store) =>
+      limit(() => crawlStore(store)),
+    ),
   );
 
   return dedupeProducts(
