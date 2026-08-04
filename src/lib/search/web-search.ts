@@ -8,10 +8,14 @@ export interface WebResult {
 /*
  * Ask the web a question, through whichever provider is configured.
  *
- * SearXNG first, because it is what the brand lookup already uses. It
- * runs on localhost, though, so a deployed copy of this service cannot
- * reach it — hence the hosted fallbacks, either of which is a key in
- * the environment away from working.
+ * Google's programmable search first: a hundred queries a day, free,
+ * no card, and the project is already there from the sign-in setup.
+ * Brands are added by hand a few at a time, so that allowance is not
+ * the constraint.
+ *
+ * Then Brave or Serper for anyone who wants more, then SearXNG, which
+ * is what the brand lookup already uses — though it runs on localhost,
+ * so a deployed copy of this service cannot reach it.
  *
  * Returns an empty list when nothing is configured or reachable.
  * Callers treat that as "found no shops", never as an error: brand
@@ -19,6 +23,17 @@ export interface WebResult {
  * they depend on.
  */
 export async function searchWeb(query: string): Promise<WebResult[]> {
+  const googleKey = process.env.GOOGLE_SEARCH_API_KEY?.trim();
+  const googleEngine = process.env.GOOGLE_SEARCH_ENGINE_ID?.trim();
+
+  if (googleKey && googleEngine) {
+    const results = await searchGoogle(query, googleKey, googleEngine);
+
+    if (results.length > 0) {
+      return results;
+    }
+  }
+
   const brave = process.env.BRAVE_SEARCH_API_KEY?.trim();
 
   if (brave) {
@@ -48,6 +63,53 @@ export async function searchWeb(query: string): Promise<WebResult[]> {
     }));
   } catch (error) {
     console.error(`Web search for ${query} found nothing:`, error);
+
+    return [];
+  }
+}
+
+async function searchGoogle(
+  query: string,
+  key: string,
+  engineId: string,
+): Promise<WebResult[]> {
+  try {
+    const url = new URL("https://www.googleapis.com/customsearch/v1");
+
+    url.searchParams.set("key", key);
+    url.searchParams.set("cx", engineId);
+    url.searchParams.set("q", query);
+    url.searchParams.set("num", "10");
+
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(15_000),
+    });
+
+    if (!response.ok) {
+      /*
+       * 429 is the daily hundred spent. Nothing is wrong with the
+       * setup, so say which it is rather than leaving a bare status.
+       */
+      console.error(
+        response.status === 429
+          ? "Google search: the free daily allowance is spent."
+          : `Google search returned ${response.status}`,
+      );
+
+      return [];
+    }
+
+    const body = (await response.json()) as {
+      items?: { title?: string; link?: string }[];
+    };
+
+    return (body.items ?? [])
+      .filter((item): item is { title: string; link: string } =>
+        Boolean(item.link),
+      )
+      .map((item) => ({ title: item.title ?? "", url: item.link }));
+  } catch (error) {
+    console.error("Google search failed:", error);
 
     return [];
   }
@@ -123,6 +185,13 @@ async function searchSerper(
 }
 
 export function searchProviderName(): string {
+  if (
+    process.env.GOOGLE_SEARCH_API_KEY?.trim() &&
+    process.env.GOOGLE_SEARCH_ENGINE_ID?.trim()
+  ) {
+    return "google";
+  }
+
   if (process.env.BRAVE_SEARCH_API_KEY?.trim()) {
     return "brave";
   }
