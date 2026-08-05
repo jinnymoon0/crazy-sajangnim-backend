@@ -53,6 +53,7 @@ function wait(milliseconds: number): Promise<void> {
 
 async function requestSearxng(
   url: URL,
+  timeoutMs: number,
 ): Promise<SearxngSearchResponse> {
   const response = await fetch(url, {
     method: "GET",
@@ -61,9 +62,7 @@ async function requestSearxng(
       "User-Agent": "crazy-sajangnim/1.0",
     },
     cache: "no-store",
-    signal: AbortSignal.timeout(
-      REQUEST_TIMEOUT_MS,
-    ),
+    signal: AbortSignal.timeout(timeoutMs),
   });
 
   const responseText = await response.text();
@@ -109,6 +108,13 @@ export async function searchSearxng(
   options?: {
     language?: string;
     page?: number;
+    /*
+     * How long the caller is willing to wait in total. Without it a
+     * host that accepts the connection and then says nothing costs
+     * MAX_ATTEMPTS x REQUEST_TIMEOUT_MS, which is longer than any
+     * caller's own budget.
+     */
+    budgetMs?: number;
   },
 ): Promise<SearxngSearchResponse> {
   const normalizedQuery = query.trim();
@@ -138,6 +144,9 @@ export async function searchSearxng(
 
   let lastError: unknown;
 
+  const deadline =
+    Date.now() + (options?.budgetMs ?? MAX_ATTEMPTS * REQUEST_TIMEOUT_MS);
+
   for (
     let attempt = 1;
     attempt <= MAX_ATTEMPTS;
@@ -149,8 +158,18 @@ export async function searchSearxng(
       await wait(cooldownRemaining);
     }
 
+    /* Nothing left to spend: stop rather than start a doomed attempt. */
+    const left = deadline - Date.now();
+
+    if (left <= 0) {
+      break;
+    }
+
     try {
-      const result = await requestSearxng(url);
+      const result = await requestSearxng(
+        url,
+        Math.min(REQUEST_TIMEOUT_MS, left),
+      );
 
       if (
         result.unresponsiveEngines.length >= THROTTLE_ENGINE_THRESHOLD

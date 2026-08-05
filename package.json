@@ -6,7 +6,9 @@
     "dev": "next dev --webpack -p 3002",
     "build": "next build",
     "start": "next start -p 3002",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.8",
@@ -25,6 +27,7 @@
     "@types/swagger-ui-react": "^5.18.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   }
 }

@@ -36,6 +36,21 @@ const CATEGORY_RULES: Array<{
     category: "t-shirts",
     keywords: ["t-shirt", "t shirt", "tshirt", "tee", "티셔츠", "반팔티"],
   },
+  /*
+   * A shirt jacket is a jacket. It has to be settled before the shirt
+   * rule, which would otherwise claim it on the word "shirt" and file
+   * an insulated overshirt next to the oxfords.
+   */
+  {
+    category: "outerwear",
+    keywords: [
+      "shirt jacket",
+      "overshirt jacket",
+      "shacket",
+      "셔츠자켓",
+      "셔켓",
+    ],
+  },
   {
     category: "shirts",
     keywords: [
@@ -268,11 +283,69 @@ const CATEGORY_RULES: Array<{
  * shrug: it makes that shelf untrustworthy for the things that do
  * belong on it.
  */
+/*
+ * Whether the text uses this keyword as a word, rather than merely
+ * containing its letters.
+ *
+ * A plain substring test filed "Placket Shirt", "Pocket Shirt",
+ * "Print Shirt" and "Nylon Quilt Shirt" as t-shirts, because the
+ * keyword "t shirt" appears inside "placke-t shirt" once the boundary
+ * between the two words is ignored. Twenty-one products sat in the
+ * wrong category on that alone.
+ *
+ * Only Latin keywords need this. Korean is written without spaces
+ * between words, so 셔츠 inside 드레스셔츠 is a real match, not an
+ * accident, and requiring a boundary there would break it.
+ */
+function usesKeyword(normalizedText: string, keyword: string): boolean {
+  const normalizedKeyword = keyword.toLowerCase();
+
+  /*
+   * Korean is written without spaces between words, so 셔츠 inside
+   * 드레스셔츠 is a real match rather than an accident.
+   */
+  if (!/[a-z]/.test(normalizedKeyword)) {
+    return normalizedText.includes(normalizedKeyword);
+  }
+
+  const isMultiWord = /[\s-]/.test(normalizedKeyword);
+
+  /*
+   * Most keywords are content words that turn up inside compounds
+   * quite legitimately — "pant" in "sweatpant", "knit" in "knitted",
+   * "boot" in "bootcut". Demanding a word boundary around those threw
+   * them all away, so they stay a plain substring test.
+   *
+   * Two kinds cannot:
+   *
+   * Multi-word keywords, because the first token can be the tail of the
+   * word before. "t shirt" appears inside "quilt shirt", "placket
+   * shirt" and "print shirt", which filed twenty-one shirts as tees.
+   *
+   * Very short ones, because three letters land inside longer words all
+   * the time: "tee" inside "sateen" made a Needles jacket a t-shirt,
+   * and "cap" inside "capsule" would make a collection a hat.
+   */
+  if (!isMultiWord && normalizedKeyword.length > 3) {
+    return normalizedText.includes(normalizedKeyword);
+  }
+
+  const pattern = normalizedKeyword
+    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    /* Retailers write "t-shirt", "t shirt" and "tshirt" alike. */
+    .replace(/[\s-]+/g, "[\\s-]*");
+
+  /* A plural is still the same word: "Tees" is the "tee" rule. */
+  return new RegExp(`(^|[^a-z0-9])${pattern}(e?s)?([^a-z0-9]|$)`, "i").test(
+    normalizedText,
+  );
+}
+
 export function inferCategory(productName: string): ProductCategory {
   const normalized = productName.toLowerCase();
 
   const match = CATEGORY_RULES.find(({ keywords }) =>
-    keywords.some((keyword) => normalized.includes(keyword.toLowerCase())),
+    keywords.some((keyword) => usesKeyword(normalized, keyword)),
   );
 
   return match?.category ?? "etc";

@@ -4,6 +4,7 @@ import {
   isAuthorizedService,
   unauthorizedResponse,
 } from "@/lib/service-auth";
+import { purgeOrphanedProducts } from "@/lib/products/brand-sync";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -16,8 +17,15 @@ type RouteContext = {
 };
 
 /*
- * Stop tracking a brand. Products already collected keep their brand
- * label; only future collection passes skip it.
+ * Stop tracking a brand, and take its products with it.
+ *
+ * They used to be left behind. The shop builds its brand filters from
+ * the catalog rather than from this table, so those products went on
+ * being offered under a brand that could no longer be looked up — which
+ * is how slip-ons stayed filed under ON long after ON was removed.
+ *
+ * Pass ?keepProducts=true to leave them, for a rename where the rows
+ * are about to be re-filed under the new slug.
  */
 export async function DELETE(request: Request, context: RouteContext) {
   if (!isAuthorizedService(request)) {
@@ -26,6 +34,9 @@ export async function DELETE(request: Request, context: RouteContext) {
 
   try {
     const { slug } = await context.params;
+
+    const keepProducts =
+      new URL(request.url).searchParams.get("keepProducts") === "true";
 
     const supabase = getSupabaseAdmin();
 
@@ -55,7 +66,32 @@ export async function DELETE(request: Request, context: RouteContext) {
       );
     }
 
-    return NextResponse.json({ slug: data.slug, removed: true });
+    /*
+     * The brand row is gone either way; failing to clear the catalog
+     * leaves drift rather than undoing the removal, so it is reported
+     * rather than turned into a 500.
+     */
+    let productsRemoved: number | null = 0;
+
+    if (!keepProducts) {
+      try {
+        const [result] = await purgeOrphanedProducts([slug]);
+
+        productsRemoved = result?.removed ?? 0;
+      } catch (purgeError) {
+        console.error("Brand removed but its products remain:", purgeError);
+
+        productsRemoved = null;
+      }
+    } else {
+      productsRemoved = null;
+    }
+
+    return NextResponse.json({
+      slug: data.slug,
+      removed: true,
+      productsRemoved,
+    });
   } catch (error) {
     console.error("Brand delete error:", error);
 
