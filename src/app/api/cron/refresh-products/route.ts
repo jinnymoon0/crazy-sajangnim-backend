@@ -52,11 +52,40 @@ export async function GET(request: NextRequest) {
 
   refreshUrl.searchParams.set("debug", "true");
 
+  /*
+   * The retailer collectors only. The search-engine phase depends on a
+   * SearXNG instance that a deployed copy of this service cannot reach,
+   * and it spent the whole time budget retrying it — so the collectors
+   * that do work never got their turn and the catalogue went stale.
+   */
+  refreshUrl.searchParams.set("mode", "direct");
+
   try {
+    /*
+     * The collection endpoint is behind the service token, so this call
+     * has to carry it. It did not when the service was split out, and
+     * every nightly refresh since has been turned away with a 401 —
+     * silently, because the cron reported the failure to a log nobody
+     * reads while the catalogue quietly went stale.
+     */
+    const serviceToken = process.env.BACKEND_API_TOKEN?.trim();
+
+    if (!serviceToken) {
+      console.error(
+        "BACKEND_API_TOKEN is not set, so the refresh cannot authenticate.",
+      );
+
+      return NextResponse.json(
+        { market, gender, ok: false, error: "Refresh is not configured." },
+        { status: 500 },
+      );
+    }
+
     const response = await fetch(refreshUrl, {
       cache: "no-store",
       headers: {
         "User-Agent": "crazy-sajangnim-catalog-refresh/1.0",
+        Authorization: `Bearer ${serviceToken}`,
       },
     });
 
