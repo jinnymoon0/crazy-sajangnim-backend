@@ -139,7 +139,16 @@ function normalizeItem(item: HbxItem): Product | null {
     .map((brand) => brand.name ?? brand.code ?? "")
     .join(" ");
 
-  const detectedBrand = inferBrand(`${brandNames} ${name}`);
+  /*
+   * The shop's own attribution first: when it names the brand, that is
+   * the shop saying so, and a name that is also an ordinary word is
+   * believed. Falling back to the text lets a title name a brand the
+   * field missed — but never a word like ON, which is why a slip-on was
+   * filed under it.
+   */
+  const detectedBrand =
+    (brandNames ? inferBrand(brandNames, { fromBrandField: true }) : null) ??
+    inferBrand(`${brandNames} ${name}`);
 
   if (!detectedBrand) {
     return null;

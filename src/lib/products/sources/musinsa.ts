@@ -73,7 +73,7 @@ function normalizeItem(
     .filter(Boolean)
     .join(" ");
 
-  const detected = inferBrand(brandLabel);
+  const detected = inferBrand(brandLabel, { fromBrandField: true });
 
   if (!detected || detected.slug !== brand.slug) {
     return null;

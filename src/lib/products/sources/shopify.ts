@@ -100,7 +100,16 @@ function normalizeShopifyProduct(
     .filter(Boolean)
     .join(" ");
 
-  const detectedBrand = inferBrand(brandText);
+  /*
+   * The shop's own attribution first: when it names the brand, that is
+   * the shop saying so, and a name that is also an ordinary word is
+   * believed. Falling back to the text lets a title name a brand the
+   * field missed — but never a word like ON, which is why a Vans slip-on was
+   * filed under it.
+   */
+  const detectedBrand =
+    (raw.vendor ? inferBrand(raw.vendor, { fromBrandField: true }) : null) ??
+    inferBrand(brandText);
 
   if (!detectedBrand) {
     return null;

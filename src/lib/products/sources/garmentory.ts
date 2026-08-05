@@ -64,7 +64,16 @@ function normalizeItem(item: GarmentoryItem): Product | null {
     return null;
   }
 
-  const detectedBrand = inferBrand(`${item.brand ?? ""} ${name}`);
+  /*
+   * The shop's own attribution first: when it names the brand, that is
+   * the shop saying so, and a name that is also an ordinary word is
+   * believed. Falling back to the text lets a title name a brand the
+   * field missed — but never a word like ON, which is why an Easymoc slip-on was
+   * filed under it.
+   */
+  const detectedBrand =
+    (item.brand ? inferBrand(item.brand, { fromBrandField: true }) : null) ??
+    inferBrand(`${item.brand ?? ""} ${name}`);
 
   if (!detectedBrand) {
     return null;

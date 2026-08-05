@@ -181,7 +181,7 @@ function normalizeHit(
    * labels carry a department — "Nike Running", "Adidas Originals" —
    * which the matcher reduces to the brand.
    */
-  const brand = inferBrand(hit.brand ?? "");
+  const brand = inferBrand(hit.brand ?? "", { fromBrandField: true });
 
   if (!brand) {
     return null;

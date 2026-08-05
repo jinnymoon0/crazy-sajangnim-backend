@@ -68,7 +68,65 @@ function containsAlias(normalizedText: string, alias: string): boolean {
     : normalizedText.includes(normalizedAlias);
 }
 
-export function inferBrand(value: string): InferredBrand | null {
+/*
+ * Brand names that are also ordinary words. ON is a real brand and also
+ * the second half of "Slip-On", which filed Easymoc and Vans shoes
+ * under it. These count only when the retailer itself says a product is
+ * that brand — never because the word turns up in what the thing is
+ * called.
+ *
+ * Judged by being a common word rather than by being short: 니들스, CDG
+ * and ALD are just as short and are never anything but the brand.
+ */
+const AMBIGUOUS_ALIAS = new Set([
+  "ON",
+  "OFF",
+  "IN",
+  "OUT",
+  "UP",
+  "THE",
+  "AND",
+  "NEW",
+  "ONE",
+  "TWO",
+  "ALL",
+  "FOR",
+  "PRO",
+  "AIR",
+  "BOX",
+  "CUT",
+  "FIT",
+  "MIX",
+  "RAW",
+  "SET",
+  "TOP",
+  "SLIP",
+  "PULL",
+  "OVER",
+  "WORK",
+  "PLAY",
+  "BASIC",
+  "CLASSIC",
+]);
+
+function isAmbiguous(alias: string): boolean {
+  return AMBIGUOUS_ALIAS.has(normalizeText(alias));
+}
+
+export interface InferBrandOptions {
+  /*
+   * The text is the retailer's own brand attribution — a vendor field, a
+   * brand column — rather than a product title. Only then is a name like
+   * ON trusted, because the shop is asserting it rather than the word
+   * happening to appear.
+   */
+  fromBrandField?: boolean;
+}
+
+export function inferBrand(
+  value: string,
+  options: InferBrandOptions = {},
+): InferredBrand | null {
   const normalizedText = normalizeText(value);
 
   if (!normalizedText) {
@@ -76,7 +134,11 @@ export function inferBrand(value: string): InferredBrand | null {
   }
 
   const matches = getActiveBrands().filter((brand) =>
-    brand.aliases.some((alias) => containsAlias(normalizedText, alias)),
+    brand.aliases.some(
+      (alias) =>
+        (options.fromBrandField || !isAmbiguous(alias)) &&
+        containsAlias(normalizedText, alias),
+    ),
   );
 
   if (matches.length !== 1) {
