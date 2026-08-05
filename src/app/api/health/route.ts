@@ -39,7 +39,19 @@ async function checkDatabase(): Promise<Check> {
       .select("slug", { count: "exact", head: true });
 
     if (error) {
-      return { name: "database", ok: false, detail: error.message };
+      /*
+       * Include the code. A health check whose failure detail is an
+       * empty string — which is what a connection refused before the
+       * client is ready produces — tells whoever is woken up nothing
+       * at all.
+       */
+      return {
+        name: "database",
+        ok: false,
+        detail:
+          [error.code, error.message].filter(Boolean).join(" ") ||
+          "the query failed without saying why",
+      };
     }
 
     return {
