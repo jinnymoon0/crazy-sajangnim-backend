@@ -1,0 +1,113 @@
+# Refresh the sale catalog every night.
+#
+# This used to be four Vercel cron jobs. They never fired: the project
+# is on the Hobby plan, which does not run four hour-precise schedules,
+# and nothing said so — the catalog simply stopped changing, which looks
+# exactly like a quiet week for sales. Every collection timestamp in the
+# database landed outside the scheduled window.
+#
+# GitHub Actions runs the same endpoint on the same schedule, for free,
+# and fails loudly when a storefront does not come back.
+#
+# Note: scheduled runs can be delayed when GitHub is busy, sometimes by
+# a good few minutes. That is fine for a nightly refresh and is the
+# trade for not paying for a scheduler.
+
+name: Refresh catalog
+
+on:
+  schedule:
+    # 16:00 UTC — the middle of the night in Korea, when the shops the
+    # collectors read are quietest.
+    - cron: "0 16 * * *"
+
+  # So it can be run by hand from the Actions tab.
+  workflow_dispatch:
+
+# Never let a slow run overlap the next one. Collection walks dozens of
+# retailer catalogues, and two doing it at once would double the load on
+# every shop we read.
+concurrency:
+  group: refresh-catalog
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      # One storefront at a time. They are sequential rather than
+      # parallel for the same reason the Vercel schedules were staggered
+      # an hour apart: four full collection runs at once is four times
+      # the traffic to every retailer.
+      max-parallel: 1
+
+      # One storefront failing should not hide the state of the others.
+      fail-fast: false
+
+      matrix:
+        include:
+          - market: US
+            gender: MEN
+          - market: US
+            gender: WOMEN
+          - market: KR
+            gender: MEN
+          - market: KR
+            gender: WOMEN
+
+    steps:
+      - name: Refresh ${{ matrix.market }} ${{ matrix.gender }}
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          # Override with a repository variable if the service moves.
+          BACKEND_URL: ${{ vars.BACKEND_URL || 'https://crazy-sajangnim-backend.vercel.app' }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CRON_SECRET}" ]; then
+            echo "::error::CRON_SECRET is not set. Add it under Settings → Secrets and variables → Actions, matching the value in the Vercel project."
+            exit 1
+          fi
+
+          url="${BACKEND_URL}/api/cron/refresh-products?market=${{ matrix.market }}&gender=${{ matrix.gender }}"
+
+          echo "Refreshing ${{ matrix.market }} ${{ matrix.gender }}"
+
+          # A full run takes a minute or two. --max-time is above the
+          # service's own 300s ceiling so the timeout that fires is the
+          # one that can explain itself.
+          http_status=$(curl -sS --max-time 330 \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -o response.json -w '%{http_code}' \
+            "${url}") || {
+              echo "::error::Could not reach ${BACKEND_URL}."
+              exit 1
+            }
+
+          echo "HTTP ${http_status}"
+          cat response.json
+          echo
+
+          if [ "${http_status}" != "200" ]; then
+            echo "::error::The refresh endpoint answered ${http_status}."
+            exit 1
+          fi
+
+          # A 200 is not success on its own: the route reports the
+          # outcome of the collection in the body, and an upstream that
+          # refused still comes back as a well-formed 200.
+          ok=$(python3 -c "import json;print(json.load(open('response.json')).get('ok'))")
+          count=$(python3 -c "import json;print(json.load(open('response.json')).get('count', 0))")
+
+          if [ "${ok}" != "True" ]; then
+            echo "::error::${{ matrix.market }} ${{ matrix.gender }} did not refresh."
+            exit 1
+          fi
+
+          if [ "${count}" -eq 0 ]; then
+            echo "::warning::${{ matrix.market }} ${{ matrix.gender }} refreshed but found no products."
+          fi
+
+          echo "### ${{ matrix.market }} ${{ matrix.gender }}: ${count} products" >> "${GITHUB_STEP_SUMMARY}"

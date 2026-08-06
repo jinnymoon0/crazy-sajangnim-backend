@@ -240,3 +240,35 @@ the account joins up with it.
 Fraktur, where the capital S is drawn with a bowl that reads as a G —
 "Crazy Gajangnim". Textura draws the S open. The distinction is between
 two blackletter traditions, not between two files.
+
+## 20. The nightly refresh is scheduled by GitHub Actions, not Vercel
+
+`.github/workflows/refresh-catalog.yml` calls the same
+`/api/cron/refresh-products` endpoint for each of the four storefronts,
+one at a time.
+
+**The failure.** Four Vercel cron jobs were declared at 16:00–19:00 UTC
+and never fired — the project is on the Hobby plan, which does not run
+four hour-precise schedules. Nothing reported this. Every collection
+timestamp in the database sat outside the scheduled window: Jul 29,
+Jul 31, Aug 3, Aug 5, all at times matching manual runs. The catalog had
+gone 28 hours stale before the health check surfaced it, and a stale
+catalog looks exactly like a quiet week for sales.
+
+**Why not simply fewer Vercel crons.** Collapsing four into one would
+put the whole refresh in a single invocation, and the four together take
+about five minutes against a 300-second ceiling.
+
+**What it costs.** Scheduled runs on GitHub can be delayed when the
+service is busy. That is acceptable for a nightly job and is the trade
+for not paying for a scheduler.
+
+**Why the step checks the body, not just the status.** The route reports
+the outcome of the collection inside a 200: an upstream that refused
+still comes back well-formed. `ok` and `count` are what say whether
+anything was actually collected.
+
+The Vercel `crons` block is left in `vercel.json` so nothing is lost if
+the project moves to a plan that runs it — but if that happens, one of
+the two schedules should be removed rather than refreshing twice.
+
