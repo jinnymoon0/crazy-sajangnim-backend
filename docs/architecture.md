@@ -82,8 +82,9 @@ database to count (`count: "exact", head: true`) or pages explicitly.
 
 Three separate mechanisms, because there are three kinds of caller.
 
-**Visitors** — the shop is public. Opening a product, the blog, or
-sharing to the blog requires an account (Google via Auth.js v5, JWT
+**Visitors** — the shop and the blog's front page are public. Opening a
+product's retailer link, opening a blog post, writing one, commenting,
+or sharing to the blog requires an account (Google via Auth.js v5, JWT
 sessions). A random id in a cookie identifies a browser for analytics;
 it names nobody by itself.
 

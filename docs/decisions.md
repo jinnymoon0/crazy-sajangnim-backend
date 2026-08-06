@@ -205,14 +205,27 @@ Recorded so the omission reads as a decision. The other headers —
 set, and `nosniff` in particular matters because blog images are
 uploaded by anyone with an account.
 
-## 17. The shop is public; the blog is not
+## 17. An account is asked for at the point of taking part
 
-Browsing sale items needs no account. Opening a product's retailer link,
-reading or writing the blog, and sharing to it all do.
+Browsing sale items and reading the blog's front page need no account.
+Opening a product's retailer link, opening a blog post, writing one,
+commenting, and sharing a find to the blog all do.
 
-**Why.** The catalog is the reason to visit and gating it costs
-visitors. Everything that writes, or that sends someone to a retailer,
-is worth an account.
+**Why.** The catalog and the feed are the reasons to visit, and gating
+them costs visitors before they have any reason to trust the site.
+Everything that writes, that sends someone to a retailer, or that puts a
+name against words is worth an account.
+
+**Superseded.** The whole blog used to need one, including reading the
+list of posts — so a shared link led to a login page rather than to the
+thing that was shared.
+
+**Where it is enforced.** `src/proxy.ts` gates `/blog/:path+` rather
+than `/blog/:path*`: the star form matches zero segments, so it would
+take `/blog` itself with it. The `/api/blog` routes stay gated and
+answer 401 rather than redirecting, because a 307 preserves the method
+and a POST would follow it to the login page, get a 200, and look as
+though it had been written.
 
 ## 18. Visitors are a random id in a cookie
 
