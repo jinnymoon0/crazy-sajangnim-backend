@@ -120,9 +120,29 @@ describe("comparison timing", () => {
     measure(wrongFirst);
     measure(wrongLast);
 
-    const early = measure(wrongFirst);
-    const late = measure(wrongLast);
-    const ratio = early / late;
+    /*
+     * The fastest of several rounds, not one round.
+     *
+     * A single sample measures the machine as much as the comparison.
+     * Run alone this passed every time; run with the rest of the suite,
+     * where other files are using the same cores, it failed about one
+     * run in three on a ratio of 2.3 — noise from being descheduled
+     * mid-measurement, reported as a timing leak that was not there.
+     *
+     * The minimum is the run that got a clean go at the CPU, so
+     * comparing minima compares the comparison rather than the load.
+     */
+    const fastest = (header: string) => {
+      let best = Infinity;
+
+      for (let round = 0; round < 5; round += 1) {
+        best = Math.min(best, measure(header));
+      }
+
+      return best;
+    };
+
+    const ratio = fastest(wrongFirst) / fastest(wrongLast);
 
     expect(ratio).toBeGreaterThan(0.5);
     expect(ratio).toBeLessThan(2);
