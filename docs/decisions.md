@@ -272,3 +272,35 @@ The Vercel `crons` block is left in `vercel.json` so nothing is lost if
 the project moves to a plan that runs it — but if that happens, one of
 the two schedules should be removed rather than refreshing twice.
 
+## 21. Health fails when a storefront has nothing to sell
+
+`checkStorefronts()` counts live products per market and gender. Any
+storefront at zero makes the whole service report `down`, not
+`degraded`, and answer 503.
+
+**The failure.** On 9 August a statement run outside the application
+marked all 4,692 catalog rows unavailable. Every check in place passed
+while it happened — the database answered, the catalog had been
+collected hours earlier, the brands were tracked — and health reported
+`degraded` for unrelated brand drift. The shop served an empty page for
+a day, and the thing that noticed was a person opening the site.
+
+Nothing was watching the one number a shop exists to produce.
+
+**Why an outage rather than a degradation.** To whoever opens the site,
+an empty catalog and a dead server are the same event.
+
+**Why an unauthenticated caller now gets a truthful status code.** It
+still learns nothing else — the body is `{"status":"down"}` and no
+detail — but the code lets any free uptime service watch the shop
+without a token. The monitoring that failed here was ours; a check that
+depends on our own scheduler shares its failure modes, and this one
+deliberately does not.
+
+**What still is not protected.** Anything holding the service-role key
+can mark the catalog unavailable again. Nothing in the application
+writes `is_available = false` — the column defaults to true and every
+source sets it true — so if it happens again it came from outside, and
+the answer is to find what has that key rather than to add a guard the
+same key could remove.
+

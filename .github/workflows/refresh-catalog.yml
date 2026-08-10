@@ -111,3 +111,46 @@ jobs:
           fi
 
           echo "### ${{ matrix.market }} ${{ matrix.gender }}: ${count} products" >> "${GITHUB_STEP_SUMMARY}"
+
+  # The refresh reports how many products it collected. That is not the
+  # same as the shop having anything to show: on 9 August the rows were
+  # all present and all marked unavailable, so a collection would have
+  # reported thousands while the storefront served nothing.
+  verify:
+    needs: refresh
+    # Runs even when a storefront failed above, because knowing whether
+    # the shop is serving matters most exactly then.
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Is the shop actually serving after all that
+        env:
+          BACKEND_URL: ${{ vars.BACKEND_URL || 'https://crazy-sajangnim-backend.vercel.app' }}
+          BACKEND_API_TOKEN: ${{ secrets.BACKEND_API_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          auth=()
+          if [ -n "${BACKEND_API_TOKEN:-}" ]; then
+            auth=(-H "Authorization: Bearer ${BACKEND_API_TOKEN}")
+          fi
+
+          http_status=$(curl -sS --max-time 60 "${auth[@]}" \
+            -o health.json -w '%{http_code}' \
+            "${BACKEND_URL}/api/health") || {
+              echo "::error::Could not reach ${BACKEND_URL}."
+              exit 1
+            }
+
+          cat health.json
+          echo
+
+          if [ "${http_status}" != "200" ]; then
+            echo "::error::Refreshed, but the shop is not serving."
+            exit 1
+          fi
+
+          echo "### Shop is serving" >> "${GITHUB_STEP_SUMMARY}"
+

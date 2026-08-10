@@ -1,0 +1,83 @@
+# Notice when the shop stops selling anything.
+#
+# On 9 August a statement run outside the application marked all 4,692
+# catalog rows unavailable. Every existing check passed while it
+# happened — the database answered, the catalog had been collected, the
+# brands were tracked — and the storefront served an empty page for a
+# day before a person noticed and said so.
+#
+# So this watches the one number a shop exists to produce. A failing run
+# emails whoever owns the repository, which is the cheapest alerting
+# there is.
+#
+# It is deliberately NOT the only protection. GitHub is the same
+# scheduler whose reliability is in question, and a monitor that shares
+# a failure mode with the thing it monitors is not a monitor. The
+# service answers 503 on /api/health to an unauthenticated caller when a
+# storefront is empty, precisely so any external uptime service can
+# watch it without a token and without depending on this file.
+
+name: Monitor
+
+on:
+  schedule:
+    # Every half hour. The check is two counts and costs almost nothing.
+    - cron: "*/30 * * * *"
+
+  workflow_dispatch:
+
+concurrency:
+  group: monitor
+  cancel-in-progress: true
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Is the shop serving anything
+        env:
+          BACKEND_URL: ${{ vars.BACKEND_URL || 'https://crazy-sajangnim-backend.vercel.app' }}
+          # Optional. Without it the check still works — it just reports
+          # "down" rather than saying which part is down.
+          BACKEND_API_TOKEN: ${{ secrets.BACKEND_API_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          auth=()
+          if [ -n "${BACKEND_API_TOKEN:-}" ]; then
+            auth=(-H "Authorization: Bearer ${BACKEND_API_TOKEN}")
+          fi
+
+          http_status=$(curl -sS --max-time 60 "${auth[@]}" \
+            -o health.json -w '%{http_code}' \
+            "${BACKEND_URL}/api/health") || {
+              echo "::error::${BACKEND_URL} could not be reached at all."
+              exit 1
+            }
+
+          echo "HTTP ${http_status}"
+          cat health.json
+          echo
+
+          if [ "${http_status}" != "200" ]; then
+            echo "::error::The shop is not serving. See the report above."
+            exit 1
+          fi
+
+          status=$(python3 -c "import json;print(json.load(open('health.json')).get('status'))")
+
+          if [ "${status}" = "down" ]; then
+            echo "::error::Health reports down."
+            exit 1
+          fi
+
+          # "degraded" is real but not urgent — brand drift, a search
+          # provider off. Said out loud without failing the run, so it
+          # does not train anyone to ignore a red cross.
+          if [ "${status}" = "degraded" ]; then
+            echo "::warning::Degraded — worth a look, not an emergency."
+          fi
+
+          echo "status: ${status}"
