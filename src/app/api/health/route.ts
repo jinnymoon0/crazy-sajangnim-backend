@@ -143,14 +143,29 @@ function checkSearch(): Check {
     (provider) => provider.configured && provider.disabled,
   );
 
+  const configured = providers.filter((provider) => provider.configured);
+
+  /*
+   * Nothing configured at all is a decision, not a fault. Stockist
+   * discovery is an improvement on top of the collectors — the catalog
+   * refreshes from the retailers either way — and running without it is
+   * a legitimate way to run.
+   *
+   * Reporting that as a problem would leave this check permanently
+   * amber, and a warning that is always on is one nobody reads. The
+   * distinction that matters is configured-and-broken, which is a real
+   * failure because it looks from outside exactly like a quiet day.
+   */
+  if (configured.length === 0) {
+    return {
+      name: "search",
+      ok: true,
+      detail: "stockist discovery is off — no provider configured",
+    };
+  }
+
   return {
     name: "search",
-    /*
-     * Not being able to search is a degradation, not an outage:
-     * discovery is an improvement on top of the collectors, and the
-     * catalog refreshes without it. It still needs saying, because it
-     * fails by finding nothing, which looks like a quiet day.
-     */
     ok: usable.length > 0,
     detail:
       broken.length > 0

@@ -304,3 +304,33 @@ source sets it true — so if it happens again it came from outside, and
 the answer is to find what has that key rather than to add a guard the
 same key could remove.
 
+## 22. Stockist discovery is off, and that is a supported state
+
+No search provider is configured. The collectors read the retailers
+already known to the system, which is where every product in the
+catalog comes from; discovery only ever added the ability to find a
+*new* shop for a brand nobody stocks yet.
+
+**Why it is off.** Google's Custom Search returns
+`403 "This project does not have the access to Custom Search JSON API"`
+for every combination tried: the original key, a brand-new key created
+in a project where the API had to be enabled to complete the form, with
+and without key restrictions, across several minutes to rule out
+propagation. The search engine itself is fine — `cse.js` and its public
+page both answer 200 — and a malformed key gives a different error, so
+neither the key nor the engine is at fault individually.
+
+The most likely remaining explanation is that the Programmable Search
+Engine and the Cloud project sit under different Google accounts, which
+is what produces that particular message rather than Google's usual
+"has not been used in project N before".
+
+SearXNG is the alternative and needs no key, but `SEARXNG_URL` points at
+localhost, which a serverless function can never reach.
+
+**Consequence for the health check.** "No provider configured" now reads
+as `ok`, not as a degradation. A check that is permanently amber is one
+nobody reads, and the distinction worth keeping is
+configured-but-broken — which is a real failure, because from outside it
+looks exactly like a quiet day with no new shops found.
+

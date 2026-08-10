@@ -133,3 +133,36 @@ describe("a storefront with stock", () => {
     expect(await response.json()).toEqual({ status: "ok" });
   });
 });
+
+describe("stockist discovery turned off", () => {
+  it("is not reported as a fault when no provider is configured", async () => {
+    /*
+     * Running without discovery is a decision. Reporting it as a
+     * problem would leave the check permanently amber, and a warning
+     * that is always on is one nobody reads.
+     */
+    vi.resetModules();
+    vi.doMock("@/lib/search/web-search", () => ({
+      searchHealth: () => [
+        { name: "google", configured: false, disabled: false },
+        { name: "searxng", configured: false, disabled: false },
+      ],
+    }));
+
+    authorized.mockReturnValue(true);
+    stubCatalog({ productCount: 500 });
+
+    const { GET } = await import("@/app/api/health/route");
+    const response = await GET(new Request("https://backend.example/api/health"));
+    const body = (await response.json()) as {
+      status: string;
+      checks: { name: string; ok: boolean; detail?: string }[];
+    };
+
+    const search = body.checks.find((c) => c.name === "search");
+
+    expect(search?.ok).toBe(true);
+    expect(search?.detail).toContain("off");
+    expect(body.status).toBe("ok");
+  });
+});
