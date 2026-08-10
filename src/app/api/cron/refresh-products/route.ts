@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import {
+  backfillMissingStores,
+  type BackfillResult,
+} from "@/lib/products/store-backfill";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -12,6 +17,8 @@ interface RefreshResult {
   count?: number;
   savedCount?: number;
   error?: string;
+  /** Which storeless brand was re-probed this run, and what turned up. */
+  backfill?: BackfillResult;
 }
 
 function isAuthorized(request: NextRequest): boolean {
@@ -98,6 +105,27 @@ export async function GET(request: NextRequest) {
       };
     };
 
+    /*
+     * After the collection, never instead of it. Store discovery only
+     * runs when a brand is added, and a failure there is logged rather
+     * than retried — so a brand added during any outage keeps no shop
+     * for ever. One brand is re-probed per run, chosen by the clock, so
+     * the twenty-odd without a shop each come round about once a day.
+     *
+     * Its own try/catch because it must not turn a successful refresh
+     * into a failed one. A backfill that could fail the collection
+     * would be a worse bug than the one it fixes.
+     */
+    let backfill: BackfillResult | undefined;
+
+    try {
+      backfill = await backfillMissingStores(
+        new Date().getUTCHours(),
+      );
+    } catch (error) {
+      console.error("Store backfill failed:", error);
+    }
+
     const result: RefreshResult = {
       market,
       gender,
@@ -106,6 +134,7 @@ export async function GET(request: NextRequest) {
       count: body.count,
       savedCount: body.diagnostics?.savedCount,
       error: body.error ?? body.diagnostics?.persistenceError ?? undefined,
+      backfill,
     };
 
     return NextResponse.json(result, {
