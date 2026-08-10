@@ -29,10 +29,9 @@ as $$
     select
       'cron'::text as source,
       d.start_time as at,
-      ('status=' || d.status || ' ' || coalesce(d.return_message, ''))::text as detail
+      (j.jobname || ': ' || d.status || ' ' || coalesce(d.return_message, ''))::text as detail
     from cron.job_run_details d
     join cron.job j on j.jobid = d.jobid
-    where j.jobname = 'refresh-catalog-hourly'
 
     union all
 
@@ -52,7 +51,7 @@ as $$
     from net._http_response r
   ) rows
   order by at desc
-  limit 25;
+  limit 40;
 $$;
 
 -- Read the definition of a function that lives only in the database.
@@ -69,11 +68,11 @@ language sql
 security definer
 set search_path = public, extensions
 as $$
-  select pg_get_functiondef(p.oid)
+  select string_agg(pg_get_functiondef(p.oid), E'\n\n-- ---- next overload ----\n\n'
+                    order by p.oid)
   from pg_proc p
   join pg_namespace n on n.oid = p.pronamespace
-  where n.nspname = 'public' and p.proname = fn
-  limit 1;
+  where n.nspname = 'public' and p.proname = fn;
 $$;
 
 -- The schedule as it currently stands, so "is it still registered" is
