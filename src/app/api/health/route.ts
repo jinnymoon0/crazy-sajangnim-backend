@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { findBrandDrift } from "@/lib/products/brand-sync";
+import { KNOWN_STOCKISTS } from "@/lib/products/known-stockists";
 import { searchHealth } from "@/lib/search/web-search";
 import { isAuthorizedService } from "@/lib/service-auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -160,7 +161,7 @@ function checkSearch(): Check {
     return {
       name: "search",
       ok: true,
-      detail: "stockist discovery is off — no provider configured",
+      detail: `no search provider — discovery is running on the ${KNOWN_STOCKISTS.length} curated stockists only`,
     };
   }
 

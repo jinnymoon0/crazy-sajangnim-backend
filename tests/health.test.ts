@@ -162,7 +162,56 @@ describe("stockist discovery turned off", () => {
     const search = body.checks.find((c) => c.name === "search");
 
     expect(search?.ok).toBe(true);
-    expect(search?.detail).toContain("off");
+
+    /*
+     * Not a failure, and no longer nothing happening either. Without a
+     * provider discovery falls back to the curated stockists, so the
+     * check has to say which of the two is running — "off" was true of
+     * the old behaviour and would now hide a working fallback behind a
+     * word meaning it does not work.
+     */
+    expect(search?.detail).toContain("curated");
+    expect(search?.detail).toMatch(/\d+/);
     expect(body.status).toBe("ok");
+  });
+});
+
+describe("discovery without a search provider", () => {
+  it("still proposes candidates from the curated stockists", async () => {
+    const { KNOWN_STOCKISTS } = await import(
+      "@/lib/products/known-stockists"
+    );
+
+    expect(KNOWN_STOCKISTS.length).toBeGreaterThan(10);
+
+    /* No duplicates: each one costs a request to the shop it names. */
+    expect(new Set(KNOWN_STOCKISTS).size).toBe(KNOWN_STOCKISTS.length);
+
+    /*
+     * None of them may be a shop already read another way or a
+     * marketplace. Listing one would either duplicate a source or let
+     * resale listings into the catalogue, and the list is the one place
+     * that would not be obvious from the outside.
+     */
+    const NEVER = [
+      "garmentory.com",
+      "hbx.com",
+      "endclothing.com",
+      "musinsa.com",
+      "29cm.co.kr",
+      "okmall.com",
+      "ssense.com",
+      "farfetch.com",
+      "grailed.com",
+      "depop.com",
+      "ebay.",
+      "amazon.",
+    ];
+
+    for (const domain of KNOWN_STOCKISTS) {
+      for (const banned of NEVER) {
+        expect(domain).not.toContain(banned);
+      }
+    }
   });
 });

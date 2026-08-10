@@ -1,4 +1,5 @@
 import { isBrandVendor } from "@/lib/products/brand-store-discovery";
+import { KNOWN_STOCKISTS } from "@/lib/products/known-stockists";
 import { searchWeb } from "@/lib/search/web-search";
 import { DIRECT_SOURCE_USER_AGENT } from "@/lib/products/sources/shared";
 import type { Market } from "@/types/product";
@@ -258,13 +259,20 @@ export async function verifyStockist(
 /*
  * Find shops that stock a brand and that we can actually read.
  *
- * Search only proposes; each candidate has to prove it carries the
- * brand, runs on a platform with a public catalogue, and prices in
- * dollars or won. Everything else is dropped.
+ * Candidates only propose; each has to prove it carries the brand, runs
+ * on a platform with a public catalogue, and prices in dollars or won.
+ * Everything else is dropped.
  *
- * With no search provider configured this returns nothing, and adding a
- * brand carries on as before — its own shop and the retailers we
- * already read.
+ * Candidates come from two places, and the order is the point. Search
+ * goes first when a provider is configured, because it is the only one
+ * that can turn up a shop nobody thought to list. The curated stockists
+ * follow, and they run whether search does or not.
+ *
+ * This used to return nothing at all without a search provider, which
+ * made every brand added since the Google key stopped working depend on
+ * a credential to find any stock beyond its own website. A key that
+ * expires, 403s, or bills should degrade what discovery finds, not
+ * switch it off.
  */
 export async function discoverRetailers(
   englishName: string,
@@ -293,6 +301,22 @@ export async function discoverRetailers(
 
     if (hosts.size >= MAX_CANDIDATES) {
       break;
+    }
+  }
+
+  /*
+   * Topped up rather than replaced. Search results keep the places they
+   * earned at the front of the queue, and the list fills whatever room
+   * is left — so a configured provider still decides most of what gets
+   * probed, and an absent one no longer decides nothing does.
+   */
+  for (const domain of KNOWN_STOCKISTS) {
+    if (hosts.size >= MAX_CANDIDATES) {
+      break;
+    }
+
+    if (isWorthProbing(domain)) {
+      hosts.add(domain);
     }
   }
 
