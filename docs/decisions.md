@@ -334,3 +334,39 @@ nobody reads, and the distinction worth keeping is
 configured-but-broken — which is a real failure, because from outside it
 looks exactly like a quiet day with no new shops found.
 
+## 23. The catalog refreshes hourly, one storefront at a time
+
+`.github/workflows/refresh-catalog.yml` runs every hour and collects one
+of the four storefronts, chosen by the hour of day. Each is re-collected
+every four hours — six times a day, against once a day before.
+
+**Why not all four every hour**, which is what "hourly" would most
+obviously mean. A full pass takes five minutes, measured against the
+live backend: 82s, 27s, 92s, 98s. GitHub bills per job rounded up to the
+minute, so all four hourly is about 4,300 minutes a month against the
+2,000 this plan includes. It would run out part-way through every month
+and stop — which is precisely the silent staleness the schedule exists
+to prevent, reintroduced by the fix.
+
+The second reason is the retailers. Each pass walks every shop we read.
+Four sweeps an hour is 96 a day against shops that already answer 429
+when pushed, and being blocked by a retailer costs more than stale
+prices.
+
+**What it cost to fit.** The matrix became a single job — each matrix
+entry was billed as its own job, so four of them paid four roundings for
+five minutes of work. The health check moved into that job rather than
+having its own. And the separate monitor dropped from every thirty
+minutes to every six hours: at 1,440 minutes a month it was spending
+most of the allowance to repeat a check the hourly refresh now performs
+anyway. Total: about 1,560 of 2,000.
+
+**The browser half.** `useProducts` polls hourly through SWR, paused
+while the tab is hidden, keeping the previous products on screen while
+new ones arrive so the grid updates in place instead of flashing empty
+on the hour.
+
+**If all four really are wanted hourly**, that is a plan change rather
+than a code change — or an external scheduler calling the endpoint,
+which costs nothing here.
+

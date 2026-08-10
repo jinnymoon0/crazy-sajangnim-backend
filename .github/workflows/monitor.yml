@@ -21,8 +21,15 @@ name: Monitor
 
 on:
   schedule:
-    # Every half hour. The check is two counts and costs almost nothing.
-    - cron: "*/30 * * * *"
+    # Every six hours, as a backstop only.
+    #
+    # It used to run every half hour, which is 1,440 billed minutes a
+    # month on its own — most of this plan's allowance, spent on a check
+    # the hourly refresh now performs anyway as its last step. The
+    # primary watch is meant to be an external uptime service hitting
+    # /api/health, which costs nothing here and does not share a failure
+    # mode with our own scheduler.
+    - cron: "0 */6 * * *"
 
   workflow_dispatch:
 
