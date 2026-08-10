@@ -148,6 +148,48 @@ async function shopCurrency(domain: string): Promise<string | null> {
  */
 const CATALOGUE_PAGES = 4;
 
+/*
+ * Ask a Shopify shop about the brand, the way the cafe24 branch below
+ * already asks a cafe24 one.
+ *
+ * Paging products.json hunts for the brand among whatever the shop
+ * listed most recently, which for a large multi-brand retailer is the
+ * wrong end of a catalogue tens of thousands of items long. Haven and
+ * Nepenthes NY both genuinely stock Needles and both were refused, and
+ * the paging drew 429s from two other shops on the way — a check that
+ * hammers a shop and then gets the answer wrong.
+ *
+ * Predictive search answers the same question in one request. A yes is
+ * conclusive; anything else falls through to the paging below rather
+ * than refusing, because not every Shopify theme exposes this.
+ */
+async function shopifySearchCarries(
+  domain: string,
+  englishName: string,
+): Promise<boolean> {
+  const response = await fetchText(
+    `https://${domain}/search/suggest.json` +
+      `?q=${encodeURIComponent(englishName)}` +
+      `&resources[type]=product&resources[limit]=10`,
+  );
+
+  if (response.kind !== "body") {
+    return false;
+  }
+
+  try {
+    const body = JSON.parse(response.text) as {
+      resources?: { results?: { products?: { vendor?: string }[] } };
+    };
+
+    return (body.resources?.results?.products ?? []).some((product) =>
+      isBrandVendor(product.vendor, englishName),
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function verifyStockist(
   domain: string,
   englishName: string,
@@ -164,10 +206,10 @@ export async function verifyStockist(
      * it listed most recently — svrn.com genuinely stocks Needles, but
      * not on page one, and stopping there would refuse a real stockist.
      */
-    let carries = false;
-    let sawAnything = false;
+    let carries = await shopifySearchCarries(domain, englishName);
+    let sawAnything = carries;
 
-    for (let page = 1; page <= CATALOGUE_PAGES; page += 1) {
+    for (let page = 1; !carries && page <= CATALOGUE_PAGES; page += 1) {
       const fetched =
         page === 1
           ? first
