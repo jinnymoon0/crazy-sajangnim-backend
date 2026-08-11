@@ -138,6 +138,14 @@ function rowToProduct(row: ProductCatalogRow): Product {
 
     isAvailable: row.is_available,
     collectedAt: row.collected_at,
+
+    /*
+     * Sent to the browser so the shop can order by it and mark what is
+     * new. collectedAt looks like it would do, but every refresh
+     * rewrites it for every item in stock, so it says when we last
+     * looked rather than when the item arrived.
+     */
+    firstSeenAt: row.first_seen_at ?? null,
   };
 }
 
@@ -251,10 +259,28 @@ export async function getProductsPage({
       });
       break;
 
+    /*
+     * When the item first appeared, not when it was last confirmed.
+     *
+     * This ordered by last_seen_at, which every collection rewrites for
+     * every item still in stock — so an hour after a run, 994 of a
+     * thousand US menswear items shared one timestamp and "Recently
+     * added" was returning them in whatever order the database felt
+     * like. first_seen_at is set once and never touched again, so it is
+     * the only column that answers the question the sort is named for.
+     *
+     * Broken ties by id. Thousands of products enter in the same
+     * collection and therefore share a first_seen_at to the
+     * microsecond; without a stable second key the same item can appear
+     * on two pages and another on none.
+     */
     case "newest":
-      query = query.order("last_seen_at", {
-        ascending: false,
-      });
+      query = query
+        .order("first_seen_at", {
+          ascending: false,
+          nullsFirst: false,
+        })
+        .order("id", { ascending: true });
       break;
 
     case "discount-desc":
@@ -264,9 +290,11 @@ export async function getProductsPage({
           ascending: false,
           nullsFirst: false,
         })
-        .order("last_seen_at", {
+        .order("first_seen_at", {
           ascending: false,
-        });
+          nullsFirst: false,
+        })
+        .order("id", { ascending: true });
       break;
   }
 

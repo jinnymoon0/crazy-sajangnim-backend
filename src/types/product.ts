@@ -37,4 +37,6 @@ export interface Product {
 
   isAvailable: boolean;
   collectedAt: string;
+  /* When this item first entered the catalogue. Set once, never rewritten. */
+  firstSeenAt?: string | null;
 }
