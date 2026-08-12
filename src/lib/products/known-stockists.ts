@@ -84,27 +84,31 @@ const KR_STOCKISTS: string[] = [
 /*
  * Japanese shops.
  *
- * The collectors need a public catalogue, which rules out the two
- * biggest names in Japanese fashion retail: ZOZOTOWN and Rakuten are
- * proprietary platforms with nothing to read, the same reason a custom
- * storefront like recto.shop cannot be collected. What is left is the
- * boutiques on Shopify, which the existing Shopify collector reads
- * without a line of new code — a shop pricing in yen now resolves to
- * the Japanese storefront through CURRENCY_MARKETS.
+ * Every one of these was probed before being listed: readable
+ * catalogue, and pricing in yen. That check mattered more here than
+ * anywhere else — of thirty-eight Japanese shops tried on reputation,
+ * two were readable. Shopify is not what Japanese retail runs on.
+ *
+ * What the rest run on is worth writing down, because it is the reason
+ * this list is short rather than an oversight. The multi-brand curation
+ * shops — 1LDK, GR8, Nubian, BEAMS, UNITED ARROWS, ESTNATION, Loftman —
+ * are on Magento or a proprietary Japanese platform, and several refuse
+ * a request from outside Japan outright. None publishes a catalogue
+ * this collector can read, and none can be added by listing a domain;
+ * each would need its own reader.
+ *
+ * So this is mostly brands' own shops rather than curation shops.
+ * UNDEFEATED's Japanese store is the exception that carries other
+ * labels, which is why it is first.
  */
 const JP_STOCKISTS: string[] = [
-  "cottonsupply.jp",
-  "1ldk.jp",
-  "vendorsupply.jp",
+  "undefeated.jp",
   "graphpaper-tokyo.com",
-  "bshop-inc.com",
-  "journal-standard.jp",
-  "nubian.jp",
-  "loftman.co.jp",
-  "hinoya.jp",
-  "camoshita.com",
-  "studious.co.jp",
-  "sonso.jp",
+  "wtaps.com",
+  "neighborhood.jp",
+  "markaware.jp",
+  "kolor.jp",
+  "hyke.jp",
 ];
 
 /*
