@@ -1,7 +1,7 @@
 # Refresh the sale catalog every hour.
 #
 # One storefront per run, rotating, so each of the four is re-collected
-# every four hours — six times a day, against once a day before.
+# every six hours — four times a day, against once a day before.
 #
 # Why not all four every hour. Two reasons, both measured:
 #
@@ -16,7 +16,7 @@
 # a day against shops that already answer 429 when pushed; rotating
 # spreads that load rather than multiplying it.
 #
-# To collect all four at once, run this by hand with "all" ticked.
+# To collect all six at once, run this by hand with "all" ticked.
 #
 # This used to be four Vercel cron jobs. They never fired — the project
 # is on a plan that does not run four hour-precise schedules, and
@@ -35,7 +35,7 @@ on:
   workflow_dispatch:
     inputs:
       all:
-        description: "Collect all four storefronts, not just this hour's one"
+        description: "Collect all six storefronts, not just this hour's one"
         type: boolean
         default: false
 
@@ -65,7 +65,7 @@ jobs:
             exit 1
           fi
 
-          combos=("US MEN" "US WOMEN" "KR MEN" "KR WOMEN")
+          combos=("US MEN" "US WOMEN" "KR MEN" "KR WOMEN" "JP MEN" "JP WOMEN")
 
           if [ "${COLLECT_ALL}" = "true" ]; then
             selected=("${combos[@]}")
@@ -75,7 +75,7 @@ jobs:
             # shift the rotation: each one still comes round every four
             # hours regardless of what ran before it. 10# forces base
             # ten, or 08 and 09 would be read as bad octal.
-            idx=$(( 10#$(date -u +%H) % 4 ))
+            idx=$(( 10#$(date -u +%H) % 6 ))
             selected=("${combos[$idx]}")
             echo "Hour $(date -u +%H) UTC selects: ${combos[$idx]}"
           fi

@@ -110,12 +110,13 @@ export async function GET(request: NextRequest) {
     brands.map((brand) =>
       limit(async () => {
         try {
-          const [US, KR] = await Promise.all([
+          const [US, KR, JP] = await Promise.all([
             countIn(brand.slug, "US"),
             countIn(brand.slug, "KR"),
+            countIn(brand.slug, "JP"),
           ]);
 
-          counts.set(brand.slug, { US, KR });
+          counts.set(brand.slug, { US, KR, JP });
         } catch (error) {
           console.error(`Count failed for ${brand.slug}:`, error);
 

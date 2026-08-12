@@ -19,7 +19,7 @@ import {
   unauthorizedResponse,
 } from "@/lib/service-auth";
 import { calculateDiscountPercentage } from "@/lib/utils";
-import type { Gender, Market, Product } from "@/types/product";
+import type { Currency, Gender, Market, Product } from "@/types/product";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -114,7 +114,7 @@ const SALE_TERMS = [
 ];
 
 function isMarket(value: string | null): value is Market {
-  return value === "US" || value === "KR";
+  return value === "US" || value === "KR" || value === "JP";
 }
 
 function isRequestedGender(
@@ -239,6 +239,49 @@ function extractKrwPrices(text: string): number[] {
   );
 }
 
+/*
+ * Yen is written three ways on Japanese shops — ¥1,200, JPY 1,200 and
+ * 1,200円 — and never with decimals, so a figure with them is something
+ * else on the page rather than a price.
+ *
+ * Without this, Japanese prices fell to the dollar reader, which looks
+ * for a leading $ and so found nothing: every Japanese product would
+ * have been dropped for having no price rather than collected wrongly.
+ */
+/* One place, so a fourth storefront cannot be added with the wrong money. */
+const CURRENCY_BY_MARKET: Record<Market, Currency> = {
+  US: "USD",
+  KR: "KRW",
+  JP: "JPY",
+};
+
+function extractJpyPrices(text: string): number[] {
+  const suffixMatches = Array.from(text.matchAll(/([\d,]{3,})\s*円/g)).map(
+    (match) => Number.parseInt(match[1].replace(/,/g, ""), 10),
+  );
+
+  const prefixMatches = Array.from(
+    text.matchAll(/(?:¥|￥|JPY)\s*([\d,]+)/gi),
+  ).map((match) => Number.parseInt(match[1].replace(/,/g, ""), 10));
+
+  return [...suffixMatches, ...prefixMatches].filter(
+    (value) => Number.isFinite(value) && value >= 100 && value < 100_000_000,
+  );
+}
+
+function pricesFor(text: string, market: Market): number[] {
+  switch (market) {
+    case "KR":
+      return extractKrwPrices(text);
+
+    case "JP":
+      return extractJpyPrices(text);
+
+    default:
+      return extractUsdPrices(text);
+  }
+}
+
 function uniqueSortedPrices(prices: number[]): number[] {
   return Array.from(
     new Set(prices.map((price) => Math.round(price * 100) / 100)),
@@ -247,7 +290,7 @@ function uniqueSortedPrices(prices: number[]): number[] {
 
 function resolveSalePrices(text: string, market: Market): ParsedPrices | null {
   const prices = uniqueSortedPrices(
-    market === "KR" ? extractKrwPrices(text) : extractUsdPrices(text),
+    pricesFor(text, market),
   );
 
   const explicitDiscount = extractDiscountPercentage(text);
@@ -289,7 +332,7 @@ function resolveSalePrices(text: string, market: Market): ParsedPrices | null {
 
 function resolveSingleSalePrice(text: string, market: Market): number | null {
   const prices = uniqueSortedPrices(
-    market === "KR" ? extractKrwPrices(text) : extractUsdPrices(text),
+    pricesFor(text, market),
   );
 
   if (prices.length === 0) {
@@ -489,7 +532,7 @@ function normalizeProduct(
     sourceUrl,
 
     market,
-    currency: market === "KR" ? "KRW" : "USD",
+    currency: CURRENCY_BY_MARKET[market],
 
     gender: requestedGender,
 

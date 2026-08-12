@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import type { Market } from "@/types/product";
+
 import {
   backfillMissingStores,
   type BackfillResult,
@@ -10,7 +12,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 interface RefreshResult {
-  market: "US" | "KR";
+  market: Market;
   gender: "MEN" | "WOMEN";
   ok: boolean;
   status: number;
@@ -47,7 +49,13 @@ export async function GET(request: NextRequest) {
 
   const genderValue = request.nextUrl.searchParams.get("gender");
 
-  const market = marketValue === "KR" ? "KR" : "US";
+  /*
+   * A closed list rather than a cast. An unrecognised value used to
+   * fall through to US, so a typo in the schedule quietly refreshed the
+   * wrong storefront and reported success.
+   */
+  const market: Market =
+    marketValue === "KR" ? "KR" : marketValue === "JP" ? "JP" : "US";
 
   const gender = genderValue === "WOMEN" ? "WOMEN" : "MEN";
 

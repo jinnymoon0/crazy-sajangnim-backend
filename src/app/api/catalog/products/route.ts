@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function isMarket(value: string | null): value is Market {
-  return value === "US" || value === "KR";
+  return value === "US" || value === "KR" || value === "JP";
 }
 
 function isGender(value: string | null): value is Exclude<Gender, "UNISEX"> {

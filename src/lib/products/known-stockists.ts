@@ -82,10 +82,36 @@ const KR_STOCKISTS: string[] = [
 ];
 
 /*
+ * Japanese shops.
+ *
+ * The collectors need a public catalogue, which rules out the two
+ * biggest names in Japanese fashion retail: ZOZOTOWN and Rakuten are
+ * proprietary platforms with nothing to read, the same reason a custom
+ * storefront like recto.shop cannot be collected. What is left is the
+ * boutiques on Shopify, which the existing Shopify collector reads
+ * without a line of new code — a shop pricing in yen now resolves to
+ * the Japanese storefront through CURRENCY_MARKETS.
+ */
+const JP_STOCKISTS: string[] = [
+  "cottonsupply.jp",
+  "1ldk.jp",
+  "vendorsupply.jp",
+  "graphpaper-tokyo.com",
+  "bshop-inc.com",
+  "journal-standard.jp",
+  "nubian.jp",
+  "loftman.co.jp",
+  "hinoya.jp",
+  "camoshita.com",
+  "studious.co.jp",
+  "sonso.jp",
+];
+
+/*
  * One list, deduplicated. Order matters a little: candidates are probed
  * in batches and the run stops once enough stockists are confirmed, so
  * the shops most likely to carry a given label come first.
  */
 export const KNOWN_STOCKISTS: string[] = Array.from(
-  new Set([...US_STOCKISTS, ...KR_STOCKISTS]),
+  new Set([...US_STOCKISTS, ...KR_STOCKISTS, ...JP_STOCKISTS]),
 );

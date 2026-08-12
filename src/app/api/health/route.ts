@@ -198,6 +198,8 @@ async function checkStorefronts(): Promise<Check & { empty: string[] }> {
     { market: "US", gender: "WOMEN" },
     { market: "KR", gender: "MEN" },
     { market: "KR", gender: "WOMEN" },
+    { market: "JP", gender: "MEN" },
+    { market: "JP", gender: "WOMEN" },
   ];
 
   try {

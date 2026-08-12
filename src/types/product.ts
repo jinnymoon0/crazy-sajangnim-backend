@@ -1,8 +1,8 @@
 import type { BrandSlug } from "@/constants/brands";
 import type { CategorySlug } from "@/constants/categories";
 
-export type Market = "US" | "KR";
-export type Currency = "USD" | "KRW";
+export type Market = "US" | "KR" | "JP";
+export type Currency = "USD" | "KRW" | "JPY";
 export type Gender = "MEN" | "WOMEN" | "UNISEX";
 export type SaleVerification = "VERIFIED" | "UNVERIFIED";
 

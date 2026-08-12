@@ -12,6 +12,7 @@ export interface DiscoveredStore {
 const CURRENCY_MARKETS: Record<string, Market> = {
   USD: "US",
   KRW: "KR",
+  JPY: "JP",
 };
 
 /*
@@ -42,9 +43,12 @@ function candidateDomains(englishName: string, slug: string): string[] {
      */
     domains.push(
       `${base}.com`,
+      `${base}.jp`,
+      `${base}.co.jp`,
       `${base}.kr`,
       `${base}.co.kr`,
       `us.${base}.com`,
+      `jp.${base}.com`,
       `kr.${base}.com`,
       `shop.${base}.com`,
       `store.${base}.com`,
@@ -61,7 +65,7 @@ function candidateDomains(englishName: string, slug: string): string[] {
      */
   }
 
-  return Array.from(new Set(domains)).slice(0, 24);
+  return Array.from(new Set(domains)).slice(0, 30);
 }
 
 async function fetchHtml(url: string): Promise<string | null> {

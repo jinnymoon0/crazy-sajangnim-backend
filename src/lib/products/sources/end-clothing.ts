@@ -19,6 +19,7 @@ const ORIGIN = "https://www.endclothing.com";
 const REGIONS: Record<Market, string> = {
   US: "us",
   KR: "kr",
+  JP: "jp",
 };
 
 // Its sale sections are split by department, and the men's listing

@@ -15,6 +15,7 @@ export interface DiscoveredRetailer {
 const CURRENCY_MARKETS: Record<string, Market> = {
   USD: "US",
   KRW: "KR",
+  JPY: "JP",
 };
 
 /*
