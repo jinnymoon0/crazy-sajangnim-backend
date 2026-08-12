@@ -60,6 +60,20 @@ const US_STOCKISTS: string[] = [
   "wellgosh.com",
   "18montrose.com",
   "antonioli.eu",
+
+  /*
+   * Probed before listing, and two of them earn their place today:
+   * No Man Walks Alone had eleven Beams Plus items reduced and Machus
+   * three from C.P. Company. The rest are readable and discount
+   * heavily, but stock labels we do not track yet — they cost one
+   * request each and start paying the moment the brand list grows.
+   */
+  "nomanwalksalone.com",
+  "machusonline.com",
+  "divisionroadinc.com",
+  "standardandstrange.com",
+  "lockwoodshop.com",
+  "blueingreensoho.com",
 ];
 
 /*
@@ -79,6 +93,13 @@ const KR_STOCKISTS: string[] = [
   "sivillage.com",
   "hago.kr",
   "4xr.co.kr",
+
+  /* Cafe24 shops, probed: readable and pricing in won. */
+  "vivastudio.co.kr",
+  "emis.kr",
+  "matinkim.com",
+  "kirsh.co.kr",
+  "covernat.net",
 ];
 
 /*
@@ -109,6 +130,7 @@ const JP_STOCKISTS: string[] = [
   "markaware.jp",
   "kolor.jp",
   "hyke.jp",
+  "taigatakahashi.com",
 ];
 
 /*
