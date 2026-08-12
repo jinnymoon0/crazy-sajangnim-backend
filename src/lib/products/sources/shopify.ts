@@ -4,7 +4,7 @@ import pLimit from "p-limit";
 import { inferBrand } from "@/lib/products/infer-brand";
 import { inferCategory } from "@/lib/products/infer-category";
 import { calculateDiscountPercentage } from "@/lib/utils";
-import type { Gender, Product } from "@/types/product";
+import type { Gender, Market, Product } from "@/types/product";
 
 import {
   dedupeProducts,
@@ -263,24 +263,41 @@ async function crawlStore(store: ShopifyStore): Promise<Product[]> {
   return products;
 }
 
-export async function collectShopifyProducts(): Promise<Product[]> {
+export async function collectShopifyProducts(
+  market: Market = "US",
+): Promise<Product[]> {
   const limit = pLimit(4);
 
   const stored = await getRetailers("shopify");
 
   /*
-   * Only the shops that price in dollars: this collector fills the
-   * American storefront, and a Korean shop's won would be read as USD.
+   * Only the shops that price in the storefront's own money. A shop is
+   * recorded with the currency it banks in, and reading a Japanese
+   * shop's yen as dollars would put a ¥30,000 coat in the American
+   * storefront at $30,000.
+   *
+   * This used to be pinned to "US", so asking for any other storefront
+   * quietly collected the American shops and stamped their products
+   * with the storefront that had been asked for — the first Japanese
+   * run wrote 858 American products into Japan's place.
    */
   const stores: ShopifyStore[] = stored
-    .filter((retailer) => retailer.market === "US")
+    .filter((retailer) => retailer.market === market)
     .map((retailer) => ({
       domain: retailer.domain,
       defaultGender: retailer.defaultGender,
     }));
 
+  /*
+   * The built-in list is American, so it is only a fallback for that
+   * storefront. Another market with no shops on file collects nothing,
+   * which is the honest answer — not a page of the wrong country's
+   * stock.
+   */
+  const fallback = market === "US" ? SHOPIFY_STORES : [];
+
   const results = await Promise.allSettled(
-    (stores.length > 0 ? stores : SHOPIFY_STORES).map((store) =>
+    (stores.length > 0 ? stores : fallback).map((store) =>
       limit(() => crawlStore(store)),
     ),
   );

@@ -31,23 +31,45 @@ export async function collectDirectProducts(
    * so it takes no brand list; the others query per brand and can be
    * narrowed to one, which is what adding a single brand does.
    */
-  const collectors: Array<() => Promise<Product[]>> =
-    market === "KR"
-      ? [
-          () => collectCafe24Products(brands),
-          () => collectOkmallProducts(brands),
-          () => collectMusinsaProducts(brands),
-          () => collectTwentyNineCmProducts(brands),
-          () => collectBrandStoreProducts(market, brands),
-          () => collectEndClothingProducts(market),
-        ]
-      : [
-          () => collectShopifyProducts(),
-          () => collectGarmentoryProducts(brands),
-          () => collectHbxProducts(brands),
-          () => collectBrandStoreProducts(market, brands),
-          () => collectEndClothingProducts(market),
-        ];
+  /*
+   * One set per storefront. This was a two-way choice on "is it Korea",
+   * so Japan fell to the American branch and collected American shops —
+   * a run that reported seven hundred products and put every one of
+   * them in the wrong country.
+   */
+  const byMarket: Record<Market, Array<() => Promise<Product[]>>> = {
+    KR: [
+      () => collectCafe24Products(brands),
+      () => collectOkmallProducts(brands),
+      () => collectMusinsaProducts(brands),
+      () => collectTwentyNineCmProducts(brands),
+      () => collectBrandStoreProducts(market, brands),
+      () => collectEndClothingProducts(market),
+    ],
+
+    US: [
+      () => collectShopifyProducts(market),
+      () => collectGarmentoryProducts(brands),
+      () => collectHbxProducts(brands),
+      () => collectBrandStoreProducts(market, brands),
+      () => collectEndClothingProducts(market),
+    ],
+
+    /*
+     * Japan has no scraper of its own yet. The two biggest names —
+     * ZOZOTOWN and Rakuten — publish no catalogue to read, so what is
+     * here is what can be read: END's Japanese storefront, the brands'
+     * own Japanese shops, and any Shopify shop discovery has found
+     * pricing in yen.
+     */
+    JP: [
+      () => collectShopifyProducts(market),
+      () => collectBrandStoreProducts(market, brands),
+      () => collectEndClothingProducts(market),
+    ],
+  };
+
+  const collectors = byMarket[market];
 
   const results = await Promise.allSettled(
     collectors.map((collect) => collect()),
