@@ -7,6 +7,7 @@ import { inferCategory } from "@/lib/products/infer-category";
 import { parseRetailerProducts } from "@/lib/products/retailers";
 import { calculateDiscountPercentage } from "@/lib/utils";
 import type { Gender, Market, Product } from "@/types/product";
+import { CURRENCY_BY_MARKET } from "@/lib/products/markets";
 
 interface ExtractOptions {
   pageUrl: string;
@@ -437,7 +438,7 @@ export async function extractProductsFromPage({
       sourceUrl,
 
       market,
-      currency: market === "KR" ? "KRW" : "USD",
+      currency: CURRENCY_BY_MARKET[market],
 
       gender: requestedGender,
 

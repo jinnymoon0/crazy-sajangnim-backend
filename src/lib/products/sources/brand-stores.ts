@@ -9,6 +9,7 @@ import { inferCategory } from "@/lib/products/infer-category";
 import { parseCafe24Products } from "@/lib/products/retailers/cafe24";
 import { calculateDiscountPercentage } from "@/lib/utils";
 import type { Market, Product } from "@/types/product";
+import { CURRENCY_BY_MARKET } from "@/lib/products/markets";
 
 import {
   dedupeProducts,
@@ -220,7 +221,7 @@ async function crawlShopifyStore(
         sourceUrl,
 
         market,
-        currency: market === "KR" ? "KRW" : "USD",
+        currency: CURRENCY_BY_MARKET[market],
         gender: resolveGender(genderText, "UNISEX"),
 
         brandSlug: brand.slug,

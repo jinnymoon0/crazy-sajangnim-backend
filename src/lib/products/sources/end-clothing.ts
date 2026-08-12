@@ -3,7 +3,8 @@ import { createHash } from "node:crypto";
 import { inferBrand } from "@/lib/products/infer-brand";
 import { inferCategory } from "@/lib/products/infer-category";
 import { calculateDiscountPercentage } from "@/lib/utils";
-import type { Gender, Market, Product } from "@/types/product";
+import type { Currency, Gender, Market, Product } from "@/types/product";
+import { CURRENCY_BY_MARKET } from "@/lib/products/markets";
 
 import { dedupeProducts, fetchWithTimeout, isReasonablePrice } from "./shared";
 
@@ -221,7 +222,7 @@ function normalizeHit(
     sourceUrl,
 
     market,
-    currency: market === "KR" ? "KRW" : "USD",
+    currency: CURRENCY_BY_MARKET[market],
     gender: resolveEndGender(hit),
 
     brandSlug: brand.slug,
@@ -269,7 +270,13 @@ export async function collectEndClothingProducts(
      * being collected, or the numbers would be right but the currency
      * wrong — the kind of mismatch that is invisible on the page.
      */
-    const expected = market === "KR" ? "KRW" : "USD";
+    /*
+     * A third storefront made this a lookup rather than a question with
+     * two answers. As a ternary, Japan expected dollars, found yen and
+     * skipped every page — the guard doing its job against a rule that
+     * had not been told Japan existed.
+     */
+    const expected = CURRENCY_BY_MARKET[market];
 
     if (first.currency !== expected) {
       console.error(

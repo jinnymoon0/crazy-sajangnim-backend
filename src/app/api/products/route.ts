@@ -20,6 +20,7 @@ import {
 } from "@/lib/service-auth";
 import { calculateDiscountPercentage } from "@/lib/utils";
 import type { Currency, Gender, Market, Product } from "@/types/product";
+import { CURRENCY_BY_MARKET } from "@/lib/products/markets";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -248,13 +249,6 @@ function extractKrwPrices(text: string): number[] {
  * for a leading $ and so found nothing: every Japanese product would
  * have been dropped for having no price rather than collected wrongly.
  */
-/* One place, so a fourth storefront cannot be added with the wrong money. */
-const CURRENCY_BY_MARKET: Record<Market, Currency> = {
-  US: "USD",
-  KR: "KRW",
-  JP: "JPY",
-};
-
 function extractJpyPrices(text: string): number[] {
   const suffixMatches = Array.from(text.matchAll(/([\d,]{3,})\s*円/g)).map(
     (match) => Number.parseInt(match[1].replace(/,/g, ""), 10),
