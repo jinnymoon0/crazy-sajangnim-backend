@@ -55,6 +55,21 @@ function candidateDomains(englishName: string, slug: string): string[] {
       `${base}.store`,
       `${base}.shop`,
       `shop${base}.com`,
+
+      /*
+       * Japanese labels often hang the city off the name, because the
+       * bare word went years ago: Graphpaper sells at
+       * graphpaper-tokyo.com, and nothing above reaches it. That store
+       * had to be set by hand, which does not survive the brand being
+       * re-added — the gap this closes.
+       *
+       * Tokyo only. Osaka and Kyoto follow the same shape but turned up
+       * no real shop in the labels tried, and each extra pattern is a
+       * request against a domain that almost certainly does not exist.
+       */
+      `${base}-tokyo.com`,
+      `${base}tokyo.com`,
+      `${base}-tokyo.jp`,
     );
 
     /*
