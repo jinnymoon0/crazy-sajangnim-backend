@@ -14,6 +14,7 @@ import {
 } from "@/lib/service-auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import type { Market } from "@/types/product";
+import { ALL_MARKETS } from "@/lib/products/markets";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,7 +26,13 @@ type RouteContext = {
   }>;
 };
 
-const MARKETS: Market[] = ["US", "KR"];
+/*
+ * Every storefront, so adding a brand in the admin collects its
+ * Japanese stock too. Hand-written this was ["US", "KR"], which stayed
+ * a valid Market[] after Japan was added — the compiler had nothing to
+ * object to and a new brand would simply never have appeared in Japan.
+ */
+const MARKETS: Market[] = ALL_MARKETS;
 
 /*
  * Find the brand's own shop and remember it, so later runs go straight

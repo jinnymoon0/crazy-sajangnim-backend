@@ -17,3 +17,13 @@ export const CURRENCY_BY_MARKET: Record<Market, Currency> = {
   KR: "KRW",
   JP: "JPY",
 };
+
+/*
+ * Every storefront, derived rather than listed.
+ *
+ * A hand-written ["US", "KR"] is a valid Market[] however many markets
+ * exist, so the compiler cannot object when one is missing — which is
+ * how the admin's brand breakdown quietly omitted Japan after the type
+ * gained it. Taken from the map above, it cannot fall behind.
+ */
+export const ALL_MARKETS = Object.keys(CURRENCY_BY_MARKET) as Market[];

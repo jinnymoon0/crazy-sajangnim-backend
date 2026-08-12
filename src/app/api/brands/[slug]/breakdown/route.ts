@@ -7,6 +7,7 @@ import {
 } from "@/lib/service-auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import type { Gender, Market } from "@/types/product";
+import { ALL_MARKETS } from "@/lib/products/markets";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ type RouteContext = {
   }>;
 };
 
-const MARKETS: Market[] = ["US", "KR"];
+const MARKETS: Market[] = ALL_MARKETS;
 const SEGMENT_GENDERS: Exclude<Gender, "UNISEX">[] = ["MEN", "WOMEN"];
 
 const PAGE_SIZE = 1000;
