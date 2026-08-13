@@ -142,6 +142,29 @@ const JP_STOCKISTS: string[] = [
   "sacai.jp",
   "isseymiyake.com",
   "ssstein.com",
+
+  /*
+   * The independent Japanese labels, which is where Shopify actually
+   * took hold — the established names are on Magento or their own
+   * platform. Three of these were discounting hard when probed: KEBOZ
+   * a hundred and eighty-five items, beautiful people eighty,
+   * 08sircus forty-seven.
+   *
+   * Nepenthes and Freak's Store are not here and cannot be. Every
+   * domain form of both was tried: nepenthes.co.jp and its variants
+   * serve no catalogue, and freaksstore.com is Magento with prices
+   * rendered client-side. Neither can be reached by listing a domain.
+   */
+  "keboz.jp",
+  "08sircus.com",
+  "beautiful-people.jp",
+  "freshservice.jp",
+  "shinyakozuka.com",
+  "irenisa.com",
+  "mamekurogouchi.com",
+  "refomed.jp",
+  "unlikely.jp",
+  "ancellm.com",
 ];
 
 /*
