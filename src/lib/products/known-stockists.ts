@@ -131,6 +131,17 @@ const JP_STOCKISTS: string[] = [
   "kolor.jp",
   "hyke.jp",
   "taigatakahashi.com",
+
+  /*
+   * Probed: readable and pricing in yen. White Mountaineering had
+   * twenty-eight items reduced when checked; the other three were at
+   * full price but are the labels Western stockists discount hardest,
+   * so they earn their place through those shops as much as their own.
+   */
+  "whitemountaineering.com",
+  "sacai.jp",
+  "isseymiyake.com",
+  "ssstein.com",
 ];
 
 /*
