@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { readGender } from "@/lib/products/gender";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import type { Gender, Market, Product, ProductSort } from "@/types/product";
 
@@ -149,6 +150,34 @@ function rowToProduct(row: ProductCatalogRow): Product {
   };
 }
 
+/*
+ * The last word on gender, applied to every source alike.
+ *
+ * Each collector decides this for itself, and each of them can be wrong
+ * in the same way: a crawl of a menswear page keeps its own default for
+ * the womenswear on it. Fixing that inside one collector fixes it for
+ * one collector, so the check lives here instead, where every source
+ * without exception passes through on its way to the table.
+ *
+ * It only overrules a collector when the listing itself is unambiguous
+ * — "women's", or a skirt. Everything else keeps whatever the source
+ * believed, including UNISEX, which is a real answer for a t-shirt.
+ */
+function correctGender(product: Product): Product {
+  const verdict = readGender(`${product.productName} ${product.categorySlug}`);
+
+  if (!verdict || verdict.gender === product.gender) {
+    return product;
+  }
+
+  console.log(
+    `Gender corrected for "${product.productName}" from ${product.gender} ` +
+      `to ${verdict.gender} (${verdict.reason}) — ${product.sourceName}`,
+  );
+
+  return { ...product, gender: verdict.gender };
+}
+
 export async function upsertProducts(products: Product[]): Promise<number> {
   if (products.length === 0) {
     return 0;
@@ -159,7 +188,13 @@ export async function upsertProducts(products: Product[]): Promise<number> {
   const uniqueRows = Array.from(
     new Map(
       products.map((product) => {
-        const row = productToRow(product);
+        /*
+         * Corrected before the key is built, not after: product_key is a
+         * hash of the gender among other things, so a row saved wrongly
+         * and corrected later would be a second row rather than an
+         * edit — the item would sit in both storefronts at once.
+         */
+        const row = productToRow(correctGender(product));
 
         return [row.product_key, row];
       }),

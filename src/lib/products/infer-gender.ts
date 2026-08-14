@@ -1,53 +1,24 @@
+import { resolveGender } from "@/lib/products/gender";
 import type { Gender } from "@/types/product";
 
-const WOMEN_KEYWORDS = [
-  "women",
-  "women's",
-  "womens",
-  "woman",
-  "female",
-  "ladies",
-  "여성",
-  "여자",
-  "우먼",
-];
-
-const MEN_KEYWORDS = [
-  " men ",
-  "men's",
-  "mens",
-  "man",
-  "male",
-  "남성",
-  "남자",
-  "맨즈",
-];
-
+/*
+ * Kept as a name the search-driven collectors already call, now backed
+ * by the one classifier in gender.ts.
+ *
+ * What it used to be was a second, weaker copy of that logic: it tested
+ * for the bare substring "man", which is inside "human", so every HUMAN
+ * MADE listing was filed as menswear on the strength of the brand name,
+ * and "mens" matched inside "womens" backwards only by luck of the
+ * check order. It also had no notion of a garment, so a skirt with no
+ * gender word in its title fell through to whichever segment was being
+ * searched.
+ *
+ * The fallback is unchanged and still matters: search results usually
+ * omit gender, and the query that found them is the best guess left.
+ */
 export function inferGender(
   text: string,
   requestedGender: Exclude<Gender, "UNISEX">,
 ): Gender {
-  const normalized = ` ${text.toLowerCase()} `;
-
-  if (
-    WOMEN_KEYWORDS.some((keyword) =>
-      normalized.includes(keyword),
-    )
-  ) {
-    return "WOMEN";
-  }
-
-  if (
-    MEN_KEYWORDS.some((keyword) =>
-      normalized.includes(keyword),
-    )
-  ) {
-    return "MEN";
-  }
-
-  /*
-   * Shopping results frequently omit gender from the title.
-   * In that case, use the gender from the search query.
-   */
-  return requestedGender;
+  return resolveGender(text, requestedGender);
 }

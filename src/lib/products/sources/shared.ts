@@ -1,86 +1,17 @@
-import type { Gender, Market, Product } from "@/types/product";
+import type { Market, Product } from "@/types/product";
 
 export const DIRECT_SOURCE_USER_AGENT =
   process.env.COLLECTOR_USER_AGENT ??
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
 
-const WOMEN_KEYWORDS = [
-  "women",
-  "women's",
-  "womens",
-  "womenswear",
-  "woman",
-  "ladies",
-  "female",
-  "여성",
-  "여자",
-  "우먼",
-];
-
 /*
- * "menswear" is listed explicitly: the plain keywords match whole words
- * only, so a retailer category like "menswear-jackets" would otherwise
- * fall through and be treated as unisex — putting men's jackets in
- * front of shoppers browsing womenswear.
+ * Gender lives in gender.ts now. This file kept a second copy of the
+ * word lists, and the two drifted: this one had the word boundaries
+ * right but could not see a garment inside a compound, so MINISKIRT and
+ * sailorskirt were not skirts and went to whichever segment the crawl
+ * defaulted to — which for a brand store is UNISEX, meaning both.
  */
-const MEN_KEYWORDS = [
-  " men ",
-  " mens ",
-  "men's",
-  "menswear",
-  " man ",
-  "male",
-  "남성",
-  "남자",
-  "맨즈",
-];
-
-/*
- * Garment types that identify womenswear when the listing carries no
- * explicit gender wording. "dress" must not match dress shirts, dress
- * pants, or dress shoes.
- */
-const WOMEN_GARMENT_PATTERNS = [
-  /\bdress(es)?\b(?!\s+(shirt|shirts|pant|pants|shoe|shoes|sock|socks))/,
-  /\bskirts?\b/,
-  /\bblouses?\b/,
-  /\bgowns?\b/,
-  /\bheeled\b/,
-  /\bheels\b/,
-  /\blingerie\b/,
-  /\bpanties\b/,
-  /\bbodysuits?\b/,
-  /\bbralettes?\b/,
-  /\bcamisoles?\b/,
-  /\bcorsets?\b/,
-  /\bstrapless\b/,
-  /원피스/,
-  /스커트/,
-  /블라우스/,
-];
-
-/*
- * Unlike inferGender, a direct catalog crawl has no requested gender to fall
- * back on: the source default may legitimately be UNISEX, which the catalog
- * read path surfaces in both gender segments.
- */
-export function resolveGender(text: string, fallback: Gender): Gender {
-  const normalized = ` ${text.toLowerCase().replace(/[/_-]+/g, " ")} `;
-
-  if (WOMEN_KEYWORDS.some((keyword) => normalized.includes(keyword))) {
-    return "WOMEN";
-  }
-
-  if (MEN_KEYWORDS.some((keyword) => normalized.includes(keyword))) {
-    return "MEN";
-  }
-
-  if (WOMEN_GARMENT_PATTERNS.some((pattern) => pattern.test(normalized))) {
-    return "WOMEN";
-  }
-
-  return fallback;
-}
+export { resolveGender } from "@/lib/products/gender";
 
 export function isReasonablePrice(price: number, market: Market): boolean {
   if (!Number.isFinite(price)) {
